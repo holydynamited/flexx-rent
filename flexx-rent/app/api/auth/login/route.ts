@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { databaseComnnect } from '@/lib/db';
+import { hashPassword, verifyPassword } from '@/app/utils/password';
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,9 +14,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const hashedPassword = await hashPassword(password);
+
     await databaseComnnect.execute(
-      'INSERT INTO users (email, password) VALUES (?, ?)',
-      [email, password]
+      'INSERT INTO users (email, hashed_password) VALUES (?, ?)',
+      [email, hashedPassword]
     );
 
     return NextResponse.json(

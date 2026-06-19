@@ -44,3 +44,24 @@ AGENTS.md
 CLAUDE.md
 
 
+
+
+
+.env.local
+
+.env
+
+.env.development
+
+.env.production
+
+.env.test
+
+.env.test.local
+
+.env.test.local.example
+
+.env.test.local.example 
+
+
+    
