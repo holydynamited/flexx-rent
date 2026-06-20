@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Playfair_Display, Inter } from 'next/font/google';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import InputField from '@/components/InputField';
 
 const playfair = Playfair_Display({ 
@@ -20,9 +21,40 @@ const inter = Inter({
 });
 
 export default function RegisterPage() {
-  const handleSubmit = (e: React.FormEvent) => {
+  const router = useRouter();
+   
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [error, setError] = useState<string>(''); 
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Registering...");
+    setError(''); 
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Registration failed');
+        return; 
+      }
+
+      router.push('/profile'); 
+
+    } catch (err) {
+      console.error('Registration error:', err);
+      setError('Connection error. Please try again later.');
+    } finally {
+      setIsLoading(false); 
+    }
   };
 
   return (
@@ -33,8 +65,6 @@ export default function RegisterPage() {
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-6xl bg-white rounded-[2rem] shadow-2xl shadow-black/5 overflow-hidden flex flex-col lg:flex-row min-h-[600px]"
       >
-        
-        {/* Левая панель */}
         <div className="relative w-full lg:w-1/2 h-64 sm:h-80 lg:h-auto overflow-hidden bg-slate-200">
           <motion.img
             initial={{ scale: 1.1 }}
@@ -65,7 +95,6 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Правая панель (Форма) */}
         <div className="w-full lg:w-1/2 p-8 sm:p-12 lg:p-16 flex flex-col justify-center bg-white">
           <div className="flex lg:hidden items-center gap-3 mb-10">
             <div className="w-10 h-10 bg-[#1d1d1f] rounded flex items-center justify-center text-white font-[family-name:var(--font-playfair)] text-xl shadow-lg shadow-black/10">
@@ -84,20 +113,38 @@ export default function RegisterPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5 w-full max-w-md">
-            <div className="flex flex-col sm:flex-row gap-5">
-              <InputField label="First Name" type="text" placeholder="John" />
-              <InputField label="Last Name" type="text" placeholder="Doe" />
-            </div>
+            {error && (
+              <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">
+                {error}
+              </div>
+            )}
 
-            <InputField label="Email Address" type="email" placeholder="john.doe@example.com" />
-            <InputField label="Password" type="password" placeholder="••••••••" />
+            <InputField
+              value={email}
+              onChange={(e) => setEmail(e.target.value)} 
+              label="Email Address" 
+              type="email" 
+              placeholder="john.doe@example.com" 
+              required
+            />
+            <InputField
+              value={password}
+              onChange={(e) => setPassword(e.target.value)} 
+              label="Password" 
+              type="password" 
+              placeholder="••••••••" 
+              required
+            />
 
             <button
               type="submit"
-              className="group relative w-full flex items-center justify-center gap-2 py-4 rounded-full bg-[#1d1d1f] text-white hover:bg-black active:scale-95 transition-all duration-200 shadow-lg shadow-black/10 overflow-hidden mt-4"
+              disabled={isLoading}
+              className="group relative w-full flex items-center justify-center gap-2 py-4 rounded-full bg-[#1d1d1f] text-white hover:bg-black disabled:opacity-70 active:scale-95 transition-all duration-200 shadow-lg shadow-black/10 overflow-hidden mt-4"
             >
-              <span className="font-light tracking-[0.05em] text-sm relative z-10">Register Now</span>
-              <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
+              <span className="font-light tracking-[0.05em] text-sm relative z-10">
+                {isLoading ? 'Registering...' : 'Register Now'}
+              </span>
+              {!isLoading && <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />}
               <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
             </button>
           </form>

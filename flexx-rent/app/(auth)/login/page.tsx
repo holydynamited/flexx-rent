@@ -101,9 +101,9 @@ export default function LoginPage() {
         <div className="w-full lg:w-1/2 p-8 sm:p-12 lg:p-16 flex flex-col justify-center bg-white">
           <div className="flex lg:hidden items-center gap-3 mb-10">
             <div className="w-10 h-10 bg-[#1d1d1f] rounded flex items-center justify-center text-white font-[family-name:var(--font-playfair)] text-xl shadow-lg shadow-black/10">
-              M
+              F
             </div>
-            <span className="font-[family-name:var(--font-playfair)] tracking-tight text-xl text-[#1d1d1f]">MunichEstates</span>
+            <span className="font-[family-name:var(--font-playfair)] tracking-tight text-xl text-[#1d1d1f]">FlexxRent</span>
           </div>
 
           <div className="mb-10">
@@ -148,7 +148,8 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex items-center justify-center gap-2 py-4 rounded-full bg-[#1d1d1f] text-white hover:bg-black disabled:opacity-70 active:scale-95 transition-all duration-200 shadow-lg shadow-black/10 overflow-hidden mt-4"
+              
+              className=" cursor-pointer group relative w-full flex items-center justify-center gap-2 py-4 rounded-full bg-[#1d1d1f] text-white hover:bg-black disabled:opacity-70 active:scale-95 transition-all duration-200 shadow-lg shadow-black/10 overflow-hidden mt-4"
             >
               <span className="font-light tracking-[0.05em] text-sm relative z-10">
                 {isLoading ? 'Processing...' : 'Sign In'}
