@@ -17,18 +17,18 @@ export default async function ProfilePage() {
   }
 
  
-    // 3. Расшифровываем токен с помощью секретного ключа
+
     const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
     const { payload } = await jwtVerify(token, secret);
 
-    // 4. Если всё ок, рендерим страницу с данными из payload
+  
     return (
       <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center p-4 font-sans">
         <div className="bg-white rounded-3xl shadow-xl shadow-black/5 p-8 max-w-sm w-full border border-slate-100">
           
           <div className="flex items-center gap-4 mb-8">
             <div className="w-16 h-16 bg-[#1d1d1f] rounded-full flex items-center justify-center text-white text-2xl font-serif">
-              {/* Берем первую букву email для аватарки */}
+
               {String(payload.email).charAt(0).toUpperCase()}
             </div>
             <div>

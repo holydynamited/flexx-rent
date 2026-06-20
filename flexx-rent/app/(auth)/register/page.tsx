@@ -139,7 +139,9 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex items-center justify-center gap-2 py-4 rounded-full bg-[#1d1d1f] text-white hover:bg-black disabled:opacity-70 active:scale-95 transition-all duration-200 shadow-lg shadow-black/10 overflow-hidden mt-4"
+              className="
+              cursor-pointer
+              group relative w-full flex items-center justify-center gap-2 py-4 rounded-full bg-[#1d1d1f] text-white hover:bg-black disabled:opacity-70 active:scale-95 transition-all duration-200 shadow-lg shadow-black/10 overflow-hidden mt-4"
             >
               <span className="font-light tracking-[0.05em] text-sm relative z-10">
                 {isLoading ? 'Registering...' : 'Register Now'}
