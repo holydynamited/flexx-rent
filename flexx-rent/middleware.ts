@@ -2,35 +2,40 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-export async function middleware(request: NextRequest) {
-  const token = request.cookies.get('session_token')?.value;
+const AUTH_PAGES = ['/login', '/register'];
+const PROTECTED_PAGES = ['/dashboard'];
 
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized: No token provided' }, { status: 401 });
+async function isAuthenticated(token?: string): Promise<boolean> {
+  if (!token || !process.env.JWT_SECRET) {
+    return false;
   }
 
   try {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-    const { payload } = await jwtVerify(token, secret);
-
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set('x-user-id', String(payload.userId));
-    requestHeaders.set('x-user-email', String(payload.email));
-    requestHeaders.set('x-user-role', String(payload.role));
-
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
-
-  } catch (error) {
-    return NextResponse.json({ error: 'Unauthorized: Invalid or expired token' }, { status: 401 });
+    await jwtVerify(token, secret);
+    return true;
+  } catch {
+    return false;
   }
 }
 
+export async function middleware(request: NextRequest) {
+  const token = request.cookies.get('session_token')?.value;
+  const authenticated = await isAuthenticated(token);
+  const { pathname } = request.nextUrl;
+
+  if (AUTH_PAGES.includes(pathname) && authenticated) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  const isProtectedPath = PROTECTED_PAGES.some((path) => pathname.startsWith(path));
+  if (isProtectedPath && !authenticated) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  return NextResponse.next();
+}
+
 export const config = {
-  matcher: [
-    '/api/((?!auth/login|auth/register).*)', 
-  ],
+  matcher: ['/login', '/register', '/dashboard/:path*'],
 };

@@ -47,7 +47,8 @@ export default function RegisterPage() {
         return; 
       }
 
-      router.push('/profile'); 
+      router.push('/');
+      router.refresh();
 
     } catch (err) {
       console.error('Registration error:', err);
