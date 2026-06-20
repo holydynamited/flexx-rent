@@ -54,30 +54,25 @@ async function run() {
   // Подключаем модуль базы динамически
   const { databaseComnnect } = await import('../lib/db');
 
-  databaseComnnect.getConnection((err, connection) => {
-    if (err) {
-      console.error('\n❌ Database connection failed!');
-      console.error('Error Code:', err.code);
-      console.error('Error Number:', err.errno);
-      console.error('Message:', err.message);
-      process.exit(1);
-    }
-
+  try {
+    const connection = await databaseComnnect.getConnection();
     console.log('\n✅ Database connection successful!');
-    
-    connection.query('SELECT 1 + 1 AS result', (queryErr, results) => {
-      connection.release(); // возвращаем коннект в пул
 
-      if (queryErr) {
-        console.error('❌ Test query failed:', queryErr.message);
-        process.exit(1);
-      }
+    const [results] = await connection.query('SELECT 1 + 1 AS result');
+    connection.release();
 
-      console.log('✅ Test query executed successfully!');
-      console.log('Result:', results);
-      process.exit(0);
-    });
-  });
+    console.log('✅ Test query executed successfully!');
+    console.log('Result:', results);
+    process.exit(0);
+  } catch (err) {
+    console.error('\n❌ Database connection failed!');
+    if (err instanceof Error) {
+      console.error('Message:', err.message);
+    } else {
+      console.error(err);
+    }
+    process.exit(1);
+  }
 }
 
 run().catch(err => {

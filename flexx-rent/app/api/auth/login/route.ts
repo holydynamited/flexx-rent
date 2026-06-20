@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { databaseComnnect } from '@/lib/db';
-import { hashPassword, verifyPassword } from '@/app/utils/password';
-
+import { verifyPassword } from '@/utils/password';
+import { generateToken } from '@/utils/jwt';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,23 +14,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const hashedPassword = await hashPassword(password);
-
-    await databaseComnnect.execute(
-      'INSERT INTO users (email, hashed_password) VALUES (?, ?)',
-      [email, hashedPassword]
+    const [rows] = await databaseComnnect.execute(
+      'SELECT id, password_hash, role FROM users WHERE email = ?',
+      [email]
     );
+    const users = rows as { id: number; password_hash: string; role: string }[];
 
-    return NextResponse.json(
-      { message: 'User registered successfully' },
-      { status: 201 }
-    );
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('ER_DUP_ENTRY')) {
-      return NextResponse.json({ error: 'User already exists' }, { status: 400 });
+    if (users.length === 0 || !(await verifyPassword(password, users[0].password_hash))) {
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    console.error('Error registering user:', error);
-    return NextResponse.json({ error: 'Failed to register user' }, { status: 500 });
+    const token = await generateToken({
+      userId: users[0].id,
+      email: email,
+      role: users[0].role
+    });
+
+    const response = NextResponse.json({ 
+      message: 'Login successful', 
+      role: users[0].role 
+    });
+
+    response.cookies.set('session_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: Number(process.env.JWT_EXPIRES_IN) || 7200,
+      path: '/',
+    });
+
+    return response;
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
