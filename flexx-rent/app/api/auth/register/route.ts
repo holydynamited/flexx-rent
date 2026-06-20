@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { databaseComnnect } from '@/lib/db';
+import { databaseConnect } from '@/lib/db'; 
 import { hashPassword } from '@/utils/password';
 import { generateToken } from '@/utils/jwt';
-
-import { RowDataPacket, ResultSetHeader } from 'mysql2'; 
+import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
 
-    // Check for required fields
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
@@ -17,8 +15,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if email is already registered
-    const [existingUsers] = await databaseComnnect.execute<RowDataPacket[]>(
+    const [existingUsers] = await databaseConnect.execute<RowDataPacket[]>(
       'SELECT id FROM users WHERE email = ?',
       [email]
     );
@@ -27,29 +24,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 400 });
     }
 
-    // Hash the provided password
     const hashedPassword = await hashPassword(password);
 
-    // Insert new user with hashed password, role defaults to 'CLIENT' in DB
-    const [result] = await databaseComnnect.execute<ResultSetHeader>(
+    const [result] = await databaseConnect.execute<ResultSetHeader>(
       'INSERT INTO users (email, password_hash) VALUES (?, ?)',
       [email, hashedPassword]
     );
 
-    // Get new user's ID
     const newUserId = result.insertId;
-    
-    // Default role as set in the database
     const assignedRole = 'CLIENT';
 
-    // Generate JWT for new user
     const token = await generateToken({
       userId: newUserId,
       email: email,
-      role: assignedRole // Provide assigned role in token
+      role: assignedRole
     });
 
-    // Respond with registration success and set session token cookie
     const response = NextResponse.json({ 
       message: 'Registration successful', 
       role: assignedRole 

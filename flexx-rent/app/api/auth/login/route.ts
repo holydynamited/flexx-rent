@@ -1,24 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { databaseComnnect } from '@/lib/db';
+
+import { databaseConnect } from '@/lib/db'; 
 import { verifyPassword } from '@/utils/password';
 import { generateToken } from '@/utils/jwt';
 
+import { RowDataPacket } from 'mysql2';
+
+interface UserRow extends RowDataPacket {
+  id: number;
+  password_hash: string;
+  role: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const body = await request.json();
 
-    if (!email || !password) {
+    const { email, password } = body;
+    
+    const cleanEmail = email.trim();
+
+
+    if (!cleanEmail || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
       );
     }
 
-    const [rows] = await databaseComnnect.execute(
+
+    const [users] = await databaseConnect.execute<UserRow[]>(
       'SELECT id, password_hash, role FROM users WHERE email = ?',
-      [email]
+      [cleanEmail]
     );
-    const users = rows as { id: number; password_hash: string; role: string }[];
 
     if (users.length === 0 || !(await verifyPassword(password, users[0].password_hash))) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
@@ -45,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error(error);
+    console.error('Login error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
