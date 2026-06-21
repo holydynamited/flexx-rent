@@ -8,6 +8,7 @@ import ProfileHeader from '@/components/profile-settings/ProfileHeader';
 import ProfileSidebar from '@/components/profile-settings/ProfileSidebar';
 import SecurityTab from '@/components/profile-settings/SecurityTab';
 import Toast from '@/components/profile-settings/Toast';
+import AppFooter from '@/components/layout/AppFooter';
 import type {
   DocumentState,
   NotificationSettings,
@@ -140,12 +141,7 @@ export default function ProfileSettings() {
         </div>
       </div>
 
-      <footer className="bg-[#1d1d1f] text-white py-12 px-6 mt-12 border-t border-white/[0.08]">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center text-[10px] text-white/30 gap-4 font-light">
-          <p>© 2026 FlexxRent GmbH. Profile settings dashboard.</p>
-          <p className="uppercase tracking-[0.15em] text-white/20">Munich</p>
-        </div>
-      </footer>
+      <AppFooter legalText="© 2026 FlexxRent GmbH. Profile settings dashboard." divisionLabel="Munich" />
     </div>
   );
 }
