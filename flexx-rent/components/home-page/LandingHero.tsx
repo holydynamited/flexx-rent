@@ -8,9 +8,7 @@ export default function LandingHero() {
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
         
         <div className="lg:col-span-5 space-y-8 text-left z-10 text-[#1d1d1f]">
-          <div className="inline-block bg-white text-[#1d1d1f] border border-black/[0.04] shadow-md shadow-black/5 rounded-full px-4 py-1.5 text-xs font-medium tracking-tight">
-           Direct Access to Long-Term Rentals
-          </div>
+        
           
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif leading-[1.1] tracking-tight text-[#1d1d1f]">
             Your new address in <span className="italic">Munich</span> within 2 hours.
@@ -47,13 +45,7 @@ export default function LandingHero() {
           <div className="absolute inset-0 bg-gradient-to-tr from-[#f5f5f7] via-transparent to-transparent z-10 pointer-events-none"></div>
           <div className="relative overflow-hidden rounded-3xl shadow-2xl shadow-black/10 aspect-[3/2] bg-slate-200">
             <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80" alt="Premium Residence Architecture" className="w-full h-full object-cover" />
-            <div className="absolute bottom-6 left-6 z-20 bg-white/90 backdrop-blur rounded-2xl p-4 shadow-xl border border-black/[0.04] flex items-center space-x-3">
-              <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
-              <div>
-                <p className="text-xs font-bold text-[#1d1d1f]">Bogenhausen District Node</p>
-                <p className="text-[10px] text-slate-500">Available for immediate lock</p>
-              </div>
-            </div>
+        
           </div>
         </div>
 

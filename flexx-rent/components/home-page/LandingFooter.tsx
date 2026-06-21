@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import BrandIdentity from '@/components/BrandIdentity';
 
 export default function LandingFooter() {
   return (
@@ -8,15 +9,13 @@ export default function LandingFooter() {
       <div className="max-w-7xl mx-auto space-y-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 border-b border-white/[0.08] pb-12">
           
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-white text-[#1d1d1f] flex items-center justify-center rounded-lg font-serif font-bold text-lg">
-              F
-            </div>
-            <div className="flex flex-col text-left">
-              <span className="font-serif text-lg tracking-wide font-medium text-white">FlexxRent</span>
-              <span className="text-[8px] uppercase tracking-widest text-white/40 mt-0.5">Long-Term Housing Network</span>
-            </div>
-          </div>
+          <BrandIdentity
+            href="/"
+            subtitle="Long-Term Housing Network"
+            iconClassName="w-8 h-8 bg-white text-[#1d1d1f] flex items-center justify-center rounded-lg font-serif font-bold text-lg"
+            titleClassName="font-serif text-lg tracking-wide font-medium text-white"
+            subtitleClassName="text-[8px] uppercase tracking-widest text-white/40 mt-0.5"
+          />
 
           <div className="flex flex-wrap gap-8 text-[11px] uppercase tracking-[0.2em] text-white/50 font-bold">
             <a href="#hero" className="hover:text-white transition-colors">Home</a>

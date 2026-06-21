@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import BrandIdentity from '@/components/BrandIdentity';
 import InputField from '@/components/InputField';
 
 const playfair = Playfair_Display({ 
@@ -78,12 +79,11 @@ export default function RegisterPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent lg:bg-gradient-to-r lg:from-black/10 lg:to-black/40 mix-blend-multiply" />
           
           <div className="absolute inset-0 p-8 flex flex-col justify-end lg:justify-between text-white">
-            <div className="hidden lg:flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded flex items-center justify-center text-white font-[family-name:var(--font-playfair)] text-xl border border-white/20">
-                F
-              </div>
-              <span className="font-[family-name:var(--font-playfair)] tracking-tight text-xl text-white/90">FlexxRent</span>
-            </div>
+            <BrandIdentity
+              className="hidden lg:flex items-center gap-3"
+              iconClassName="w-10 h-10 bg-white/10 backdrop-blur-md rounded flex items-center justify-center text-white font-[family-name:var(--font-playfair)] text-xl border border-white/20"
+              titleClassName="font-[family-name:var(--font-playfair)] tracking-tight text-xl text-white/90"
+            />
             
             <div>
               <h2 className="font-[family-name:var(--font-playfair)] text-3xl lg:text-4xl leading-[1.1] tracking-tight mb-3">
@@ -97,12 +97,13 @@ export default function RegisterPage() {
         </div>
 
         <div className="w-full lg:w-1/2 p-8 sm:p-12 lg:p-16 flex flex-col justify-center bg-white">
-          <div className="flex lg:hidden items-center gap-3 mb-10">
-            <div className="w-10 h-10 bg-[#1d1d1f] rounded flex items-center justify-center text-white font-[family-name:var(--font-playfair)] text-xl shadow-lg shadow-black/10">
-              M
-            </div>
-            <span className="font-[family-name:var(--font-playfair)] tracking-tight text-xl text-[#1d1d1f]">MunichEstates</span>
-          </div>
+          <BrandIdentity
+            className="flex lg:hidden items-center gap-3 mb-10"
+            iconText="M"
+            title="MunichEstates"
+            iconClassName="w-10 h-10 bg-[#1d1d1f] rounded flex items-center justify-center text-white font-[family-name:var(--font-playfair)] text-xl shadow-lg shadow-black/10"
+            titleClassName="font-[family-name:var(--font-playfair)] tracking-tight text-xl text-[#1d1d1f]"
+          />
 
           <div className="mb-10">
             <h1 className="text-3xl lg:text-4xl font-[family-name:var(--font-playfair)] text-[#1d1d1f] mb-2 tracking-tight">

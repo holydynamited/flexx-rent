@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import BrandIdentity from '@/components/BrandIdentity';
 import { UserRole, VerificationStatus } from '@/lib/types';
 
 interface LandingHeaderProps {
@@ -20,21 +21,23 @@ export default function LandingHeader({ user }: LandingHeaderProps) {
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-black/[0.03] px-6 py-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         
-        <div className="flex items-center space-x-3 cursor-pointer">
-          <div className="w-9 h-9 bg-[#1d1d1f] flex items-center justify-center rounded-xl text-white font-serif font-bold text-xl">
-            F
-          </div>
-          <div className="flex flex-col">
-            <span className="font-serif text-lg tracking-wide font-semibold leading-none">FlexxRent</span>
-            <span className="text-[9px] uppercase tracking-[0.25em] text-slate-500 font-light mt-1">International Division</span>
-          </div>
-        </div>
+        <BrandIdentity
+          href="/"
+          subtitle="International Division"
+          className="flex items-center space-x-3 cursor-pointer"
+          titleClassName="font-serif text-[#1d1d1f] text-lg tracking-wide font-semibold leading-none"
+          subtitleClassName="text-[9px] uppercase tracking-[0.25em] text-slate-500 font-light mt-1"
+        />
 
         <nav className="hidden md:flex items-center space-x-10 text-[14px] font-medium text-slate-600">
-          <a href="#hero" className="hover:text-[#1d1d1f] transition-colors">Home</a>
-          <a href="#about" className="hover:text-[#1d1d1f] transition-colors">Service</a>
-          <a href="#portfolio" className="hover:text-[#1d1d1f] transition-colors">Portfolio</a>
-          <a href="#contact" className="hover:text-[#1d1d1f] transition-colors">Contact</a>
+        <a href="#hero" className="hover:text-[#1d1d1f] transition-colors">Home</a>
+    
+          <a href="#hero" className="hover:text-[#1d1d1f] transition-colors">Catalog</a>
+          {user&&(
+          <a href="#about" className="hover:text-[#1d1d1f] transition-colors">Smart Matcher</a>
+        )
+       }
+          <a href="#contact" className="hover:text-[#1d1d1f] transition-colors">How it works</a>
         </nav>
 
         <div className="relative">
@@ -78,18 +81,18 @@ export default function LandingHeader({ user }: LandingHeaderProps) {
           {isOpen && user && (
             <div className="absolute right-0 mt-3 w-80 bg-white/95 backdrop-blur-md rounded-3xl p-6 shadow-2xl border border-black/[0.04] z-50">
               <div className="flex items-center space-x-3 pb-4 border-b border-black/[0.04]">
-                <div className="w-12 h-12 bg-slate-100 border border-black/[0.05] text-[#1d1d1f] font-serif font-bold text-xl rounded-full flex items-center justify-center">
+                <div className="w-12  text-[#1d1d1f] h-12 bg-slate-100 border border-black/[0.05] text-[#1d1d1f] font-serif font-bold text-xl rounded-full flex items-center justify-center">
                   {user.firstName[0].toUpperCase()}{user.lastName[0].toUpperCase()}
                 </div>
                 <div>
-                  <h4 className="font-serif text-sm font-semibold">{user.firstName} {user.lastName}</h4>
+                  <h4 className="font-serif text-[#1d1d1f] text-sm font-semibold">{user.firstName} {user.lastName}</h4>
                   <p className="text-[11px] text-slate-500">{user.email}</p>
                   <p className="text-[10px] text-zinc-400 font-mono mt-0.5">Role: {user.role}</p>
                 </div>
               </div>
               <div className="pt-4 space-y-2">
-                <a href="/dashboard" className="block w-full text-center bg-[#1d1d1f] text-white py-2.5 rounded-full text-xs font-semibold hover:bg-black transition-colors cursor-pointer">
-                  Go to Dashboard
+                <a href="/profile-settings" className="block w-full text-center bg-[#1d1d1f] text-white py-2.5 rounded-full text-xs font-semibold hover:bg-black transition-colors cursor-pointer">
+                 Profile Settings
                 </a>
                 
                 <button 
