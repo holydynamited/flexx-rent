@@ -53,21 +53,12 @@ export default function MatcherClientPage({ user }: MatcherClientPageProps) {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#1d1d1f] rounded-xl flex items-center justify-center text-white font-bold text-xl">F</div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-serif font-semibold text-lg tracking-tight">FlexxRent</span>
-                <span className="bg-[#1d1d1f] text-white text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-widest font-bold">Matcher</span>
-              </div>
+             
               <p className="text-[11px] text-slate-500 font-light tracking-tight">Client preference engine</p>
             </div>
           </div>
 
-          <div className="space-y-3 text-xs text-slate-500">
-            <p className="uppercase tracking-wider font-semibold text-slate-400">Steps</p>
-            <p>1. Define location and budget</p>
-            <p>2. Set minimum rooms and area</p>
-            <p>3. Choose preferred heating types</p>
-            <p>4. Review matched listings</p>
-          </div>
+        
         </div>
 
         <div className="pt-6 border-t border-black/[0.04] space-y-2 text-xs text-slate-500">

@@ -3,6 +3,7 @@ import { databaseConnect } from '@/lib/db';
 import { hashPassword } from '@/utils/password';
 import { generateToken } from '@/utils/jwt';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { data } from 'framer-motion/client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,12 +27,42 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await hashPassword(password);
 
-    const [result] = await databaseConnect.execute<ResultSetHeader>(
-      'INSERT INTO users (email, password_hash) VALUES (?, ?)',
-      [email, hashedPassword]
-    );
+    const conn = await databaseConnect.getConnection();
+    let newUserId:number;
+  
 
-    const newUserId = result.insertId;
+    try{
+
+      await conn.beginTransaction();
+
+      const [result] = await conn.execute<ResultSetHeader>(
+        'INSERT INTO users (email, password_hash) VALUES (?, ?)',
+        [email, hashedPassword]
+      );
+
+      newUserId = result.insertId;
+
+
+      await conn.execute(
+      'INSERT INTO profiles (user_id, first_name, last_name, phone, verification_status ) VALUES (?,?,?,?,?)',
+      [newUserId, 'New', 'User', '', 'PENDING']
+      );
+
+      await conn.commit();
+     
+      }
+      catch (txError){
+        await conn.rollback();
+        throw txError;
+        
+          
+        }  finally{
+          conn.release();
+        }
+    
+
+ 
+
     const assignedRole = 'CLIENT';
 
     const token = await generateToken({

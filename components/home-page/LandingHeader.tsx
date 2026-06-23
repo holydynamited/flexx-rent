@@ -22,7 +22,7 @@ export default function LandingHeader({ user }: LandingHeaderProps) {
             Catalog
           </Link>
           {user ? (
-            <Link href="/profile-settings" className="hover:text-[#1d1d1f] transition-colors">
+            <Link href="/matcher" className="hover:text-[#1d1d1f] transition-colors">
               Smart Matcher
             </Link>
           ) : null}
