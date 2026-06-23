@@ -18,15 +18,14 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = body;
     
-    const cleanEmail = email.trim();
 
-
-    if (!cleanEmail || !password) {
+    if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
       );
     }
+    const cleanEmail = email.trim();
 
 
     const [users] = await databaseConnect.execute<UserRow[]>(

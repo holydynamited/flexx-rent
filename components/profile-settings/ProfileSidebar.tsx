@@ -15,7 +15,25 @@ const tabs: Array<{ id: SettingsTab; label: string; icon: string }> = [
   { id: 'notifications', label: 'Notifications', icon: '🔔' },
 ];
 
+const statusLabelByVerification: Record<UserProfile['verificationStatus'], string> = {
+  PENDING: 'Pending verification',
+  VERIFIED: 'Documents approved',
+  REJECTED: 'Documents rejected',
+};
+
 export default function ProfileSidebar({ activeTab, onTabChange, user }: ProfileSidebarProps) {
+  const isVerified = user.verificationStatus === 'VERIFIED';
+  const badgeLabel = isVerified ? 'Verified member' : 'Verification pending';
+  const statusLabel = statusLabelByVerification[user.verificationStatus];
+  const statusStyles = isVerified
+    ? 'bg-emerald-50/50 text-emerald-800 border-emerald-100'
+    : 'bg-amber-50 text-amber-800 border-amber-100';
+  const pulseStyles = isVerified ? 'bg-emerald-400' : 'bg-amber-400';
+  const dotStyles = isVerified ? 'bg-emerald-500' : 'bg-amber-500';
+  const helperText = isVerified
+    ? 'Your profile is complete and ready for apartment applications.'
+    : 'Your documents are still under review. Upload missing files to speed up approval.';
+
   return (
     <div className="w-full max-w-[640px] mx-auto space-y-6 text-left">
       <div className="w-full bg-white rounded-3xl p-6 shadow-xl shadow-black/[0.02] border border-black/[0.01]">
@@ -28,7 +46,7 @@ export default function ProfileSidebar({ activeTab, onTabChange, user }: Profile
               {user.firstName} {user.lastName}
             </h2>
             <span className="bg-slate-100 text-[#1d1d1f] text-[9px] uppercase tracking-wider px-2.5 py-0.5 rounded-full font-bold">
-              Verified member
+              {badgeLabel}
             </span>
           </div>
         </div>
@@ -37,15 +55,15 @@ export default function ProfileSidebar({ activeTab, onTabChange, user }: Profile
           <span className="text-[10px] uppercase text-slate-400 block font-bold tracking-wider">
             Verification status
           </span>
-          <div className="mt-2.5 p-3.5 bg-emerald-50/50 text-emerald-800 text-xs rounded-2xl border border-emerald-100 flex items-center space-x-2.5">
+          <div className={`mt-2.5 p-3.5 text-xs rounded-2xl border flex items-center space-x-2.5 ${statusStyles}`}>
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${pulseStyles}`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${dotStyles}`}></span>
             </span>
-            <span className="font-semibold">Documents approved</span>
+            <span className="font-semibold">{statusLabel}</span>
           </div>
           <p className="text-[11px] text-slate-400 leading-relaxed font-light mt-3">
-            Your profile is complete and ready for apartment applications.
+            {helperText}
           </p>
         </div>
       </div>

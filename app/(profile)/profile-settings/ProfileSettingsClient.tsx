@@ -20,9 +20,10 @@ import type {
 
 type Props = {
   initialProfile: UserProfile;
+  initialDocuments: DocumentState;
 };
 
-const initialDocuments: DocumentState = {
+const defaultDocuments: DocumentState = {
   idCard: { name: 'passport_scan.pdf', size: '2.4 MB', uploadedAt: '12 Jun 2026' },
   schufa: null,
   tenantSelfDisclosure: null,
@@ -34,7 +35,7 @@ const initialNotificationSettings: NotificationSettings = {
   matchingAlerts: true,
 };
 
-export default function ProfileSettingsClient({ initialProfile }: Props) {
+export default function ProfileSettingsClient({ initialProfile, initialDocuments }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('personal');
   const [profile, setProfile] = useState<UserProfile>(initialProfile);
   const [profileForm, setProfileForm] = useState<ProfileFormData>({
@@ -44,27 +45,48 @@ export default function ProfileSettingsClient({ initialProfile }: Props) {
     preferredDistrict: initialProfile.preferredDistrict,
     monthlyBudget: initialProfile.monthlyBudget,
   });
+
+  const handlePersonalInfoSave = async (e: React.FormEvent) => {
+    e.preventDefault(); 
+
+    try {
+      const response = await fetch('/api/profile-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ first_name: profileForm.firstName, last_name: profileForm.lastName, phone: profileForm.phone }),
+      });
+      
+      const data = await response.json();
+
+      if (!response.ok) {
+        triggerToast(data.error || 'Invalid email or password');
+        return; 
+      }
+
+      setProfile((previous) => ({
+        ...previous,
+        ...profileForm,
+      }));
+      triggerToast('Personal info updated successfully');
+
+    } catch (err) {
+      console.error('Login error:', err);
+      triggerToast('Connection error. Please try again later.');
+    } 
+  };
+
   const [passwordForm, setPasswordForm] = useState<PasswordFormData>({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
-  const [documents, setDocuments] = useState<DocumentState>(initialDocuments);
+  const [documents, setDocuments] = useState<DocumentState>(initialDocuments || defaultDocuments);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(initialNotificationSettings);
   const [toast, setToast] = useState<string | null>(null);
 
   const triggerToast = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(null), 3500);
-  };
-
-  const handleProfileSave = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setProfile((previous) => ({
-      ...previous,
-      ...profileForm,
-    }));
-    triggerToast('Profile details were saved.');
   };
 
   const handlePasswordSave = (event: FormEvent<HTMLFormElement>) => {
@@ -82,12 +104,29 @@ export default function ProfileSettingsClient({ initialProfile }: Props) {
     triggerToast('Password was updated.');
   };
 
-  const handleFileUpload = (docKey: keyof DocumentState, fileName: string, fileSize: string) => {
-    setDocuments((previous) => ({
-      ...previous,
-      [docKey]: { name: fileName, size: fileSize, uploadedAt: 'Today' },
-    }));
-    triggerToast(`${fileName} uploaded.`);
+  const handleFileUpload = async (docKey: keyof DocumentState, fileName: string) => {
+    try {
+      const response = await fetch('/api/documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentType: docKey }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        triggerToast(data.error || 'Failed to upload document.');
+        return;
+      }
+
+      setDocuments((previous) => ({
+        ...previous,
+        [docKey]: { name: fileName, size: 'PDF', uploadedAt: 'Today' },
+      }));
+      triggerToast(`${fileName} uploaded.`);
+    } catch (error) {
+      console.error('Document upload error:', error);
+      triggerToast('Connection error. Please try again later.');
+    }
   };
 
   const handleFileDelete = (docKey: keyof DocumentState) => {
@@ -109,7 +148,7 @@ export default function ProfileSettingsClient({ initialProfile }: Props) {
             <div className="w-full max-w-[640px] min-w-0 mx-auto text-left">
               <div className="w-full bg-white rounded-3xl p-6 md:p-8 shadow-xl shadow-black/[0.02] border border-black/[0.01] min-h-[500px]">
                 {activeTab === 'personal' && (
-                  <PersonalInfoTab form={profileForm} onChange={setProfileForm} onSave={handleProfileSave} />
+                  <PersonalInfoTab form={profileForm} onChange={setProfileForm} onSave={handlePersonalInfoSave} />
                 )}
                 {activeTab === 'security' && (
                   <SecurityTab

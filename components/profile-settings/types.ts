@@ -1,9 +1,13 @@
+import type { UserRole, VerificationStatus } from '@/lib/types';
+
 export type SettingsTab = 'personal' | 'security' | 'documents' | 'notifications';
 
 export interface UserProfile {
   firstName: string;
   lastName: string;
   email: string;
+  role: UserRole;
+  verificationStatus: VerificationStatus;
   phone: string;
   preferredDistrict: string;
   monthlyBudget: number;

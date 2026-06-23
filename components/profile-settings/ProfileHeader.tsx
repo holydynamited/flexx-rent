@@ -14,8 +14,8 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        role: 'CLIENT',
-        verificationStatus: 'VERIFIED',
+        role: user.role,
+        verificationStatus: user.verificationStatus,
       }}
       brandSubtitle="Account"
       centerContent={

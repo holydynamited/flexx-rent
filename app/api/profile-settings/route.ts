@@ -20,9 +20,15 @@ export async function PATCH(request:NextRequest){
 
           const userId = payload.userId;
 
-        const {first_name, last_name, phone_number} = await request.json();
+        const {first_name, last_name, phone} = await request.json();
 
-          if(!first_name.trim() || !last_name.trim() || !phone_number.trim()) {
+        if (
+          typeof first_name !== 'string' ||
+          typeof last_name !== 'string' ||
+          typeof phone !== 'string'
+        ) { return NextResponse.json({ error: 'Invalid data type' }, { status: 400 }); }
+
+          if(!first_name.trim() || !last_name.trim() || !phone.trim()) {
             return NextResponse.json({ error: 'First name, last name and phone number are required' }, { status: 400 });
           }
 
@@ -36,8 +42,8 @@ export async function PATCH(request:NextRequest){
           }
 
           await databaseConnect.execute(
-            'UPDATE users SET first_name = ?, last_name = ?, phone_number = ? WHERE id = ?',
-            [first_name, last_name, phone_number, userId]
+            'UPDATE profiles SET first_name = ?, last_name = ?, phone = ? WHERE user_id = ?',
+            [first_name, last_name, phone, userId]
           );
 
           return NextResponse.json({ message: 'Personal info updated successfully' }, { status: 200 });
