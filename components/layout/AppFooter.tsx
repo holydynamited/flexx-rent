@@ -16,6 +16,7 @@ interface AppFooterProps {
 const defaultLinks: FooterLink[] = [
   { label: 'Home', href: '/' },
   { label: 'Catalog', href: '/catalog' },
+  { label: 'How It Works', href: '/how-it-works' },
   { label: 'Profile', href: '/profile-settings' },
   { label: 'Register', href: '/register' },
 ];

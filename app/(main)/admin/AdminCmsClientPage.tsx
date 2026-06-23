@@ -80,6 +80,11 @@ export default function AdminCmsClientPage({ user }: AdminCmsClientPageProps) {
     };
   }, [profiles, payments]);
 
+  const formattedTurnover = useMemo(
+    () => new Intl.NumberFormat('en-US').format(stats.totalTransactions),
+    [stats.totalTransactions],
+  );
+
   const handleApprove = (userId: string) => {
     setProfiles((previous) =>
       previous.map((profile) => {
@@ -235,7 +240,7 @@ export default function AdminCmsClientPage({ user }: AdminCmsClientPageProps) {
           <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <MetricCard label="Verification queue" value={`${stats.pendingVerifications} requests`} icon={<AlertTriangle className="w-5 h-5" />} />
             <MetricCard label="Verified clients" value={`${stats.totalVerified} users`} icon={<CheckCircle2 className="w-5 h-5" />} />
-            <MetricCard label="Turnover" value={`EUR ${stats.totalTransactions.toLocaleString()}`} icon={<DollarSign className="w-5 h-5" />} />
+            <MetricCard label="Turnover" value={`EUR ${formattedTurnover}`} icon={<DollarSign className="w-5 h-5" />} />
             <MetricCard label="Blocked accounts" value={`${stats.totalBlocked} accounts`} icon={<Lock className="w-4 h-4" />} />
           </div>
         </section>

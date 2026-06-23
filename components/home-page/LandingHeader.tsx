@@ -26,7 +26,7 @@ export default function LandingHeader({ user }: LandingHeaderProps) {
               Smart Matcher
             </Link>
           ) : null}
-          <Link href="/register" className="hover:text-[#1d1d1f] transition-colors">
+          <Link href="/how-it-works" className="hover:text-[#1d1d1f] transition-colors">
             How it works
           </Link>
         </nav>
