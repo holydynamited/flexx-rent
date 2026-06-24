@@ -76,6 +76,12 @@ export default function AppHeader({ user, centerContent, brandSubtitle = 'Intern
               </div>
               <div className="pt-4 space-y-2">
                 <Link
+                  href="/my-bookings"
+                  className="block w-full text-center bg-white border border-black/[0.08] text-[#1d1d1f] py-2.5 rounded-full text-xs font-semibold hover:bg-black/[0.02] transition-colors"
+                >
+                  My Bookings
+                </Link>
+                <Link
                   href="/profile-settings"
                   className="block w-full text-center bg-[#1d1d1f] text-white py-2.5 rounded-full text-xs font-semibold hover:bg-black transition-colors"
                 >
