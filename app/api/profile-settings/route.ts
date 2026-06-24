@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { databaseConnect } from '@/lib/db'; 
-import { verifyToken } from '@/utils/jwt';
+import { requireApiUser } from '@/lib/server/apiAuth';
 import { RowDataPacket } from 'mysql2';
 
 
 export async function PATCH(request:NextRequest){
     try{
-        const token = request.cookies.get('session_token')?.value;
-        
-
-        if (!token) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-          }
-          const payload = await verifyToken(token);
-          
-          if (!payload) {
-            return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+          const authUserOrResponse = await requireApiUser(request);
+          if (authUserOrResponse instanceof NextResponse) {
+            return authUserOrResponse;
           }
 
-          const userId = payload.userId;
+          const userId = authUserOrResponse.userId;
 
         const {first_name, last_name, phone} = await request.json();
 

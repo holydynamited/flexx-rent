@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle,
   ArrowRight,
@@ -114,8 +115,16 @@ export default function CheckoutClientPage({ user }: CheckoutClientPageProps) {
       />
 
       <main className="max-w-6xl mx-auto w-full px-4 md:px-6 py-10 md:py-14">
+        <AnimatePresence mode="wait" initial={false}>
         {!isPaid ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <motion.div
+            key="checkout-payment-form"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="grid grid-cols-1 lg:grid-cols-12 gap-8"
+          >
             <section className="lg:col-span-7 bg-white rounded-3xl p-6 md:p-8 border border-black/[0.02] shadow-xl shadow-black/[0.02] space-y-6">
               <div className="space-y-2">
                 <h1 className="text-2xl md:text-3xl font-serif tracking-tight">Secure payment</h1>
@@ -131,7 +140,12 @@ export default function CheckoutClientPage({ user }: CheckoutClientPageProps) {
               </div>
 
               {isProcessing ? (
-                <div className="py-10 space-y-5">
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className="py-10 space-y-5"
+                >
                   <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div className="h-full bg-[#1d1d1f] rounded-full transition-all duration-500" style={{ width: `${((processingStep + 1) / PROCESSING_STEPS.length) * 100}%` }} />
                   </div>
@@ -139,93 +153,116 @@ export default function CheckoutClientPage({ user }: CheckoutClientPageProps) {
                     <p className="text-sm font-semibold">Processing transaction</p>
                     <p className="text-xs text-slate-500 font-mono">{PROCESSING_STEPS[processingStep]}</p>
                   </div>
-                </div>
+                </motion.div>
               ) : (
                 <form onSubmit={handleSubmitPayment} className="space-y-4">
-                  {paymentMethod === 'card' ? (
-                    <>
-                      <Field label="Card holder name">
-                        <input
-                          type="text"
-                          required
-                          value={cardName}
-                          onChange={(event) => setCardName(event.target.value.toUpperCase())}
-                          placeholder="IVAN KOVALENKO"
-                          className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm tracking-widest font-mono focus:outline-none focus:border-[#1d1d1f] focus:bg-white"
-                        />
-                      </Field>
-                      <Field label="Card number">
-                        <input
-                          type="text"
-                          required
-                          value={cardNumber}
-                          onChange={(event) => handleCardNumberChange(event.target.value)}
-                          placeholder="0000 0000 0000 0000"
-                          className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm tracking-widest font-mono focus:outline-none focus:border-[#1d1d1f] focus:bg-white"
-                        />
-                      </Field>
-                      <div className="grid grid-cols-2 gap-4">
-                        <Field label="Expiry">
+                  <AnimatePresence mode="wait" initial={false}>
+                    {paymentMethod === 'card' ? (
+                      <motion.div
+                        key="checkout-method-card"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        className="space-y-4"
+                      >
+                        <Field label="Card holder name">
                           <input
                             type="text"
                             required
-                            value={cardExpiry}
-                            onChange={(event) => handleExpiryChange(event.target.value)}
-                            placeholder="MM/YY"
-                            className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm tracking-widest font-mono text-center focus:outline-none focus:border-[#1d1d1f] focus:bg-white"
+                            value={cardName}
+                            onChange={(event) => setCardName(event.target.value.toUpperCase())}
+                            placeholder="IVAN KOVALENKO"
+                            className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm tracking-widest font-mono focus:outline-none focus:border-[#1d1d1f] focus:bg-white"
                           />
                         </Field>
-                        <Field label="CVV">
+                        <Field label="Card number">
                           <input
-                            type="password"
+                            type="text"
                             required
-                            value={cardCvv}
-                            onChange={(event) => handleCvvChange(event.target.value)}
-                            placeholder="•••"
-                            className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm tracking-widest font-mono text-center focus:outline-none focus:border-[#1d1d1f] focus:bg-white"
+                            value={cardNumber}
+                            onChange={(event) => handleCardNumberChange(event.target.value)}
+                            placeholder="0000 0000 0000 0000"
+                            className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm tracking-widest font-mono focus:outline-none focus:border-[#1d1d1f] focus:bg-white"
                           />
                         </Field>
-                      </div>
-                    </>
-                  ) : null}
+                        <div className="grid grid-cols-2 gap-4">
+                          <Field label="Expiry">
+                            <input
+                              type="text"
+                              required
+                              value={cardExpiry}
+                              onChange={(event) => handleExpiryChange(event.target.value)}
+                              placeholder="MM/YY"
+                              className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm tracking-widest font-mono text-center focus:outline-none focus:border-[#1d1d1f] focus:bg-white"
+                            />
+                          </Field>
+                          <Field label="CVV">
+                            <input
+                              type="password"
+                              required
+                              value={cardCvv}
+                              onChange={(event) => handleCvvChange(event.target.value)}
+                              placeholder="•••"
+                              className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm tracking-widest font-mono text-center focus:outline-none focus:border-[#1d1d1f] focus:bg-white"
+                            />
+                          </Field>
+                        </div>
+                      </motion.div>
+                    ) : null}
 
-                  {paymentMethod === 'sepa' ? (
-                    <>
-                      <Field label="IBAN">
-                        <input
-                          type="text"
-                          required
-                          value={sepaIban}
-                          onChange={(event) => setSepaIban(event.target.value.toUpperCase())}
-                          placeholder="DE89 3704 0044 0532 0130 00"
-                          className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm tracking-widest font-mono focus:outline-none focus:border-[#1d1d1f] focus:bg-white"
-                        />
-                      </Field>
-                      <Field label="BIC">
-                        <input
-                          type="text"
-                          required
-                          value={sepaBic}
-                          onChange={(event) => setSepaBic(event.target.value.toUpperCase())}
-                          placeholder="COBADEFFXXX"
-                          className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm tracking-widest font-mono focus:outline-none focus:border-[#1d1d1f] focus:bg-white"
-                        />
-                      </Field>
-                      <p className="text-[11px] text-slate-500 bg-[#f5f5f7] border border-black/[0.02] p-3 rounded-xl">
-                        By continuing, you authorize FlexxRent to collect funds via SEPA Direct Debit.
-                      </p>
-                    </>
-                  ) : null}
+                    {paymentMethod === 'sepa' ? (
+                      <motion.div
+                        key="checkout-method-sepa"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        className="space-y-4"
+                      >
+                        <Field label="IBAN">
+                          <input
+                            type="text"
+                            required
+                            value={sepaIban}
+                            onChange={(event) => setSepaIban(event.target.value.toUpperCase())}
+                            placeholder="DE89 3704 0044 0532 0130 00"
+                            className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm tracking-widest font-mono focus:outline-none focus:border-[#1d1d1f] focus:bg-white"
+                          />
+                        </Field>
+                        <Field label="BIC">
+                          <input
+                            type="text"
+                            required
+                            value={sepaBic}
+                            onChange={(event) => setSepaBic(event.target.value.toUpperCase())}
+                            placeholder="COBADEFFXXX"
+                            className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm tracking-widest font-mono focus:outline-none focus:border-[#1d1d1f] focus:bg-white"
+                          />
+                        </Field>
+                        <p className="text-[11px] text-slate-500 bg-[#f5f5f7] border border-black/[0.02] p-3 rounded-xl">
+                          By continuing, you authorize FlexxRent to collect funds via SEPA Direct Debit.
+                        </p>
+                      </motion.div>
+                    ) : null}
 
-                  {paymentMethod === 'apple' ? (
-                    <div className="py-8 text-center space-y-3">
-                      <div className="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center mx-auto">
-                        <Wallet className="w-6 h-6" />
-                      </div>
-                      <p className="text-sm font-medium">Pay with Apple Pay</p>
-                      <p className="text-xs text-slate-500">Use Face ID or Touch ID to authorize this payment.</p>
-                    </div>
-                  ) : null}
+                    {paymentMethod === 'apple' ? (
+                      <motion.div
+                        key="checkout-method-apple"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        className="py-8 text-center space-y-3"
+                      >
+                        <div className="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center mx-auto">
+                          <Wallet className="w-6 h-6" />
+                        </div>
+                        <p className="text-sm font-medium">Pay with Apple Pay</p>
+                        <p className="text-xs text-slate-500">Use Face ID or Touch ID to authorize this payment.</p>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
 
                   <button
                     type="submit"
@@ -271,9 +308,16 @@ export default function CheckoutClientPage({ user }: CheckoutClientPageProps) {
                 </p>
               </div>
             </section>
-          </div>
+          </motion.div>
         ) : (
-          <div className="bg-white rounded-3xl p-8 md:p-12 border border-black/[0.02] shadow-xl shadow-black/[0.02] max-w-2xl mx-auto text-center space-y-8">
+          <motion.div
+            key="checkout-payment-success"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="bg-white rounded-3xl p-8 md:p-12 border border-black/[0.02] shadow-xl shadow-black/[0.02] max-w-2xl mx-auto text-center space-y-8"
+          >
             <div className="w-16 h-16 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-md">
               <CheckCircle2 className="w-8 h-8" />
             </div>
@@ -318,8 +362,9 @@ export default function CheckoutClientPage({ user }: CheckoutClientPageProps) {
                 <ActionButton icon={<ExternalLink className="w-4 h-4" />} label="Open bookings" onClick={() => { window.location.href = '/agent'; }} primary />
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </main>
 
       <AppFooter divisionLabel="Payments and Escrow Division" />

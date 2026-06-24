@@ -2,30 +2,135 @@
 
 import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { motion } from 'framer-motion';
 import BrandIdentity from '@/components/BrandIdentity';
+import ProfileMenuPanel from '@/components/layout/ProfileMenuPanel';
 import type { HeaderUser } from '@/components/layout/types';
+import type { UserRole } from '@/lib/types';
 
 interface AppHeaderProps {
   user: HeaderUser | null;
   centerContent?: ReactNode;
   brandSubtitle?: string;
+  showBrand?: boolean;
+  showRoleNav?: boolean;
+  showCenterContent?: boolean;
 }
 
-export default function AppHeader({ user, centerContent, brandSubtitle = 'International Division' }: AppHeaderProps) {
+interface RoleNavItem {
+  href: string;
+  label: string;
+}
+
+function getClientTopNavConfig(isAuthenticated: boolean): RoleNavItem[] {
+  const nav: RoleNavItem[] = [
+    { href: '/', label: 'Home' },
+    { href: '/catalog', label: 'Catalog' },
+  ];
+
+  if (isAuthenticated) {
+    nav.push({ href: '/matcher', label: 'Matcher' });
+  }
+
+  nav.push({ href: '/how-it-works', label: 'How it works' });
+  return nav;
+}
+
+function getRoleTopNavConfig(role: UserRole, isAuthenticated: boolean): RoleNavItem[] {
+  if (role === 'ADMIN') {
+    return [{ href: '/admin', label: 'Admin CRM' }];
+  }
+  if (role === 'AGENT') {
+    return [{ href: '/agent', label: 'Agent CRM' }];
+  }
+  return getClientTopNavConfig(isAuthenticated);
+}
+
+function getRoleMenuNavConfig(role: UserRole): RoleNavItem[] {
+  if (role === 'ADMIN') {
+    return [
+      { href: '/admin', label: 'Admin CRM' },
+      { href: '/profile-settings', label: 'Profile' },
+    ];
+  }
+  if (role === 'AGENT') {
+    return [
+      { href: '/agent', label: 'Agent CRM' },
+      { href: '/profile-settings', label: 'Profile' },
+    ];
+  }
+  return [
+    { href: '/my-offers', label: 'My Offers' },
+    { href: '/my-bookings', label: 'My Bookings' },
+    { href: '/profile-settings', label: 'Profile' },
+  ];
+}
+
+function isNavItemActive(pathname: string, href: string): boolean {
+  if (href === '/') {
+    return pathname === '/';
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export default function AppHeader({
+  user,
+  centerContent,
+  brandSubtitle = 'International Division',
+  showBrand = true,
+  showRoleNav = true,
+  showCenterContent = false,
+}: AppHeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+  const roleTopNav = user
+    ? getRoleTopNavConfig(user.role, true)
+    : getRoleTopNavConfig('CLIENT', false);
+  const roleMenuNav = user ? getRoleMenuNavConfig(user.role) : [];
 
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-black/[0.03] px-6 py-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-        <BrandIdentity
-          href="/"
-          subtitle={brandSubtitle}
-          className="flex items-center space-x-3 cursor-pointer"
-          titleClassName="font-serif text-[#1d1d1f] text-lg tracking-wide font-semibold leading-none"
-          subtitleClassName="text-[9px] uppercase tracking-[0.25em] text-slate-500 font-light mt-1"
-        />
+        {showBrand ? (
+          <BrandIdentity
+            href="/"
+            subtitle={brandSubtitle}
+            className="flex items-center space-x-3 cursor-pointer"
+            titleClassName="font-serif text-[#1d1d1f] text-lg tracking-wide font-semibold leading-none"
+            subtitleClassName="text-[9px] uppercase tracking-[0.25em] text-slate-500 font-light mt-1"
+          />
+        ) : (
+          <div />
+        )}
 
-        <div className="hidden md:flex items-center">{centerContent}</div>
+        <div className="hidden md:flex items-center gap-6">
+          {showRoleNav ? (
+            <nav className="hidden lg:flex items-center gap-2">
+              {roleTopNav.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`relative px-2 py-1.5 text-[11px] uppercase tracking-wider font-semibold transition-colors duration-200 ${
+                    isNavItemActive(pathname, item.href)
+                      ? 'text-[#1d1d1f]'
+                      : 'text-slate-500 hover:text-[#1d1d1f]'
+                  }`}
+                >
+                  {isNavItemActive(pathname, item.href) ? (
+                    <motion.span
+                      layoutId="app-header-active-underline"
+                      className="absolute left-2 right-2 -bottom-0.5 h-[2px] rounded-full bg-[#1d1d1f]/55"
+                      transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.35 }}
+                    />
+                  ) : null}
+                  <span className="relative z-10">{item.label}</span>
+                </Link>
+              ))}
+            </nav>
+          ) : null}
+          {showCenterContent ? centerContent : null}
+        </div>
 
         <div className="relative">
           {user ? (
@@ -59,45 +164,17 @@ export default function AppHeader({ user, centerContent, brandSubtitle = 'Intern
             </div>
           )}
 
-          {isOpen && user && (
-            <div className="absolute right-0 mt-3 w-80 bg-white/95 backdrop-blur-md rounded-3xl p-6 shadow-2xl border border-black/[0.04] z-50">
-              <div className="flex items-center space-x-3 pb-4 border-b border-black/[0.04]">
-                <div className="w-12 h-12 bg-slate-100 border border-black/[0.05] text-[#1d1d1f] font-serif font-bold text-xl rounded-full flex items-center justify-center">
-                  {user.firstName[0].toUpperCase()}
-                  {user.lastName[0].toUpperCase()}
-                </div>
-                <div>
-                  <h4 className="font-serif text-[#1d1d1f] text-sm font-semibold">
-                    {user.firstName} {user.lastName}
-                  </h4>
-                  <p className="text-[11px] text-slate-500">{user.email}</p>
-                  <p className="text-[10px] text-zinc-400 font-mono mt-0.5">Role: {user.role}</p>
-                </div>
-              </div>
-              <div className="pt-4 space-y-2">
-                <Link
-                  href="/my-bookings"
-                  className="block w-full text-center bg-white border border-black/[0.08] text-[#1d1d1f] py-2.5 rounded-full text-xs font-semibold hover:bg-black/[0.02] transition-colors"
-                >
-                  My Bookings
-                </Link>
-                <Link
-                  href="/profile-settings"
-                  className="block w-full text-center bg-[#1d1d1f] text-white py-2.5 rounded-full text-xs font-semibold hover:bg-black transition-colors"
-                >
-                  Profile Settings
-                </Link>
-                <button
-                  onClick={() => {
-                    window.location.href = '/api/auth/logout';
-                  }}
-                  className="w-full text-center text-red-600 hover:bg-red-50 py-2 rounded-full text-[11px] font-semibold transition-colors block"
-                >
-                  Sign Out
-                </button>
-              </div>
-            </div>
-          )}
+          {isOpen && user ? (
+            <ProfileMenuPanel
+              user={user}
+              pathname={pathname}
+              roleMenuNav={roleMenuNav}
+              isNavItemActive={isNavItemActive}
+              onSignOut={() => {
+                window.location.href = '/api/auth/logout';
+              }}
+            />
+          ) : null}
         </div>
       </div>
     </header>

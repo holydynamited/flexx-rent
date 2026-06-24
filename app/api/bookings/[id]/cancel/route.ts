@@ -2,57 +2,39 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 import { databaseConnect } from '@/lib/db';
-import { verifyToken } from '@/utils/jwt';
+import { requireApiProfile } from '@/lib/server/apiAuth';
 import type { BookingStatus } from '@/lib/types';
-
-interface ProfileRow extends RowDataPacket {
-  id: number;
-}
 
 interface BookingRow extends RowDataPacket {
   id: number;
-  status: BookingStatus;
+  status: BookingStatus | 'PENDING';
+  property_id: number;
 }
 
-async function getUserProfileIdOrResponse(request: NextRequest): Promise<number | NextResponse> {
-  const token = request.cookies.get('session_token')?.value;
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const payload = await verifyToken(token);
-  if (!payload) {
-    return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
-  }
-
-  const [profiles] = await databaseConnect.execute<ProfileRow[]>(
-    'SELECT id FROM profiles WHERE user_id = ? LIMIT 1',
-    [payload.userId]
-  );
-
-  if (!profiles.length) {
-    return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-  }
-
-  return profiles[0].id;
+interface PaymentStatusRow extends RowDataPacket {
+  transaction_status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELED' | null;
 }
 
-export async function PATCH(request: NextRequest, context: { params: { id: string } }) {
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const profileIdOrResponse = await getUserProfileIdOrResponse(request);
-    if (profileIdOrResponse instanceof NextResponse) {
-      return profileIdOrResponse;
+    const authProfileOrResponse = await requireApiProfile(request);
+    if (authProfileOrResponse instanceof NextResponse) {
+      return authProfileOrResponse;
     }
-    const profileId = profileIdOrResponse;
+    const profileId = authProfileOrResponse.profileId;
 
-    const bookingId = Number(context.params.id);
+    const params = await context.params;
+    const bookingId = Number(params.id);
     if (!Number.isInteger(bookingId) || bookingId <= 0) {
       return NextResponse.json({ error: 'Invalid booking id' }, { status: 400 });
     }
 
     const [rows] = await databaseConnect.execute<BookingRow[]>(
       `
-        SELECT id, status
+        SELECT id, status, property_id
         FROM bookings
         WHERE id = ? AND client_profile_id = ?
         LIMIT 1
@@ -65,18 +47,70 @@ export async function PATCH(request: NextRequest, context: { params: { id: strin
     }
 
     const booking = rows[0];
-    if (booking.status !== 'NEW' && booking.status !== 'PENDING') {
-      return NextResponse.json({ error: 'Only NEW or PENDING bookings can be cancelled' }, { status: 409 });
+    if (booking.status !== 'NEW' && booking.status !== 'PENDING_PAYMENT' && booking.status !== 'PENDING') {
+      return NextResponse.json({ error: 'Only NEW or PENDING_PAYMENT bookings can be cancelled' }, { status: 409 });
     }
 
-    await databaseConnect.execute<ResultSetHeader>(
+    const [paymentRows] = await databaseConnect.execute<PaymentStatusRow[]>(
       `
-        UPDATE bookings
-        SET status = 'CANCELLED'
-        WHERE id = ? AND client_profile_id = ?
+        SELECT transaction_status
+        FROM payments
+        WHERE booking_id = ?
+        ORDER BY id DESC
+        LIMIT 1
       `,
-      [bookingId, profileId]
+      [bookingId]
     );
+    if (paymentRows[0]?.transaction_status === 'SUCCESS') {
+      return NextResponse.json(
+        { error: 'Paid booking cannot be cancelled' },
+        { status: 409 }
+      );
+    }
+
+    const conn = await databaseConnect.getConnection();
+    let transactionStarted = false;
+    try {
+      await conn.beginTransaction();
+      transactionStarted = true;
+
+      await conn.execute<ResultSetHeader>(
+        `
+          UPDATE bookings
+          SET status = 'CANCELLED'
+          WHERE id = ? AND client_profile_id = ?
+        `,
+        [bookingId, profileId]
+      );
+
+      if (booking.status === 'PENDING_PAYMENT' || booking.status === 'PENDING') {
+        await conn.execute<ResultSetHeader>(
+          `
+            UPDATE properties p
+            SET p.status = 'AVAILABLE'
+            WHERE p.id = ?
+              AND p.status = 'PENDING_PAYMENT'
+              AND NOT EXISTS (
+                SELECT 1
+                FROM bookings b
+                WHERE b.property_id = p.id
+                  AND b.status IN ('PENDING_PAYMENT', 'RESERVED')
+              )
+          `,
+          [booking.property_id]
+        );
+      }
+
+      await conn.commit();
+      transactionStarted = false;
+    } catch (error) {
+      if (transactionStarted) {
+        await conn.rollback();
+      }
+      throw error;
+    } finally {
+      conn.release();
+    }
 
     return NextResponse.json(
       {

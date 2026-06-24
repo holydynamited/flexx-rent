@@ -2,8 +2,31 @@
 // 1. CORE USER & ACCOUNT TYPES
 // ==========================================
 
-export type UserRole = 'GUEST' | 'CLIENT' | 'AGENT' | 'ADMIN';
+export type UserRole = 'CLIENT' | 'AGENT' | 'ADMIN';
 export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
+export const USER_ROLES: UserRole[] = ['CLIENT', 'AGENT', 'ADMIN'];
+
+export function isClientRole(role: UserRole): boolean {
+  return role === 'CLIENT';
+}
+
+export function isAgentRole(role: UserRole): boolean {
+  return role === 'AGENT';
+}
+
+export function isAdminRole(role: UserRole): boolean {
+  return role === 'ADMIN';
+}
+
+export function getDefaultRouteForRole(role: UserRole): '/' | '/agent' | '/admin' {
+  if (role === 'ADMIN') {
+    return '/admin';
+  }
+  if (role === 'AGENT') {
+    return '/agent';
+  }
+  return '/';
+}
 
 export interface User {
   id: number;
@@ -83,8 +106,10 @@ export interface Property {
 // 4. LEASEHOLD & TRANSACTION TYPES
 // ==========================================
 
-export type BookingStatus = 'NEW' | 'PENDING' | 'CANCELLED';
-export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
+export type BookingStatus = 'NEW' | 'PENDING_PAYMENT' | 'RESERVED' | 'CANCELLED';
+export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELED';
+export const BOOKING_STATUSES: BookingStatus[] = ['NEW', 'PENDING_PAYMENT', 'RESERVED', 'CANCELLED'];
+export const PAYMENT_STATUSES: PaymentStatus[] = ['PENDING', 'SUCCESS', 'FAILED', 'CANCELED'];
 
 export interface Booking {
   id: number;

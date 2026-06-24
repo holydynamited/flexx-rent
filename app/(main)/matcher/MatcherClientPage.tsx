@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Building, CheckCircle2, Compass, Euro, Layers, MapPin, Send } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import AppHeader from '@/components/layout/AppHeader';
-import AppFooter from '@/components/layout/AppFooter';
 import type { HeaderUser } from '@/components/layout/types';
 import type { MatcherProperty } from '@/components/matcher/types';
 
@@ -12,14 +12,81 @@ interface MatcherClientPageProps {
   properties: MatcherProperty[];
 }
 
+interface MatcherPropertiesResponse {
+  properties?: MatcherProperty[];
+  error?: string;
+}
+
 export default function MatcherClientPage({ user, properties }: MatcherClientPageProps) {
+  const [matcherProperties, setMatcherProperties] = useState<MatcherProperty[]>(properties);
   const [city, setCity] = useState('Munich');
   const [maxTotalRent, setMaxTotalRent] = useState(1900);
   const [minArea, setMinArea] = useState(40);
   const [minRooms, setMinRooms] = useState(2);
+  const [isAutoMatch, setIsAutoMatch] = useState(true);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isRefreshingMatches, setIsRefreshingMatches] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [newMatchesCount, setNewMatchesCount] = useState(0);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date>(new Date());
+  const [isPageVisible, setIsPageVisible] = useState(true);
+  const knownPropertyIdsRef = useRef<Set<string>>(new Set(properties.map((property) => property.id)));
+
+  const refreshMatches = useCallback(
+    async (options: { manual?: boolean } = {}) => {
+      if (options.manual) {
+        setIsRefreshingMatches(true);
+      }
+      setRefreshError(null);
+      try {
+        const response = await fetch('/api/matcher/properties', {
+          method: 'GET',
+          cache: 'no-store',
+        });
+        const payload = (await response.json().catch(() => null)) as MatcherPropertiesResponse | null;
+        if (!response.ok) {
+          setRefreshError(payload?.error || 'Failed to refresh matches.');
+          return;
+        }
+        const nextProperties = Array.isArray(payload?.properties) ? payload.properties : [];
+        const nextIds = new Set(nextProperties.map((property) => property.id));
+        let addedCount = 0;
+        for (const id of nextIds) {
+          if (!knownPropertyIdsRef.current.has(id)) {
+            addedCount += 1;
+          }
+        }
+        knownPropertyIdsRef.current = nextIds;
+        setMatcherProperties(nextProperties);
+        setLastUpdatedAt(new Date());
+        if (addedCount > 0) {
+          setNewMatchesCount((current) => current + addedCount);
+        }
+      } catch {
+        setRefreshError('Failed to refresh matches.');
+      } finally {
+        if (options.manual) {
+          setIsRefreshingMatches(false);
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsPageVisible(document.visibilityState === 'visible');
+    };
+
+    handleVisibilityChange();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     let isCancelled = false;
@@ -48,6 +115,7 @@ export default function MatcherClientPage({ user, properties }: MatcherClientPag
         setMaxTotalRent(Number(data.questionnaire.maxTotalRent) || 1900);
         setMinRooms(Number(data.questionnaire.minRooms) || 2);
         setMinArea(Number(data.questionnaire.minAreaSqm) || 40);
+        setIsAutoMatch(Boolean(data.questionnaire.isActive));
       } catch {
         // Keep defaults when preferences cannot be loaded.
       }
@@ -60,24 +128,39 @@ export default function MatcherClientPage({ user, properties }: MatcherClientPag
     };
   }, []);
 
+  useEffect(() => {
+    if (!isAutoMatch || !isPageVisible) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshMatches();
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isAutoMatch, isPageVisible, refreshMatches]);
+
   const matchingProperties = useMemo(() => {
-    return properties.filter((property) => {
+    return matcherProperties.filter((property) => {
       if (property.city.toLowerCase() !== city.toLowerCase()) return false;
       if (property.baseRent + property.utilityCosts > maxTotalRent) return false;
       if (property.area < minArea) return false;
       if (property.rooms < minRooms) return false;
       return true;
     });
-  }, [properties, city, maxTotalRent, minArea, minRooms]);
+  }, [matcherProperties, city, maxTotalRent, minArea, minRooms]);
 
   const cityOptions = useMemo(() => {
-    const uniqueCities = new Set(properties.map((property) => property.city).filter(Boolean));
+    const uniqueCities = new Set(matcherProperties.map((property) => property.city).filter(Boolean));
     return Array.from(uniqueCities).sort((a, b) => a.localeCompare(b));
-  }, [properties]);
+  }, [matcherProperties]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaveError(null);
+    setLastSavedAt(null);
     setIsSaving(true);
 
     try {
@@ -89,7 +172,7 @@ export default function MatcherClientPage({ user, properties }: MatcherClientPag
           maxTotalRent,
           minRooms,
           minAreaSqm: minArea,
-          isActive: true,
+          isActive: isAutoMatch,
         }),
       });
 
@@ -100,6 +183,7 @@ export default function MatcherClientPage({ user, properties }: MatcherClientPag
       }
 
       setIsSubmitted(true);
+      setLastSavedAt(new Date());
     } catch {
       setSaveError('Failed to save preferences.');
     } finally {
@@ -108,27 +192,8 @@ export default function MatcherClientPage({ user, properties }: MatcherClientPag
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] flex">
-      <aside className="hidden lg:flex flex-col w-72 bg-white border-r border-black/[0.04] h-screen sticky top-0 justify-between p-6 shrink-0 z-30">
-        <div className="space-y-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#1d1d1f] rounded-xl flex items-center justify-center text-white font-bold text-xl">F</div>
-            <div>
-             
-              <p className="text-[11px] text-slate-500 font-light tracking-tight">Client preference engine</p>
-            </div>
-          </div>
-
-        
-        </div>
-
-        <div className="pt-6 border-t border-black/[0.04] space-y-2 text-xs text-slate-500">
-          <p className="font-semibold text-[#1d1d1f]">{user.firstName} {user.lastName}</p>
-          <p>Personalized matching profile</p>
-        </div>
-      </aside>
-
-      <div className="flex-1 flex flex-col min-w-0">
+    <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]">
+      <div className="flex flex-col min-w-0">
         <AppHeader user={user} brandSubtitle="Smart Matcher" />
 
         <main className="max-w-7xl mx-auto px-6 py-12 md:py-20 w-full">
@@ -194,7 +259,30 @@ export default function MatcherClientPage({ user, properties }: MatcherClientPag
                   </div>
                 </div>
 
+                <div className="flex items-center justify-between bg-[#f5f5f7] border border-black/[0.04] rounded-xl p-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Auto-match</p>
+                    <p className="text-[11px] text-slate-500">
+                      {isAutoMatch ? 'ON - matcher refreshes every 15s while tab is active.' : 'OFF - refresh manually.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsAutoMatch((value) => !value)}
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border transition ${
+                      isAutoMatch
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}
+                  >
+                    {isAutoMatch ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+
                 {saveError ? <p className="text-xs text-rose-600 font-medium">{saveError}</p> : null}
+                {!saveError && lastSavedAt ? (
+                  <p className="text-xs text-emerald-700 font-medium">Saved at {lastSavedAt.toLocaleTimeString('en-GB')}</p>
+                ) : null}
 
                 <button
                   type="submit"
@@ -227,51 +315,131 @@ export default function MatcherClientPage({ user, properties }: MatcherClientPag
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xs uppercase tracking-widest font-bold text-slate-500 flex items-center gap-1.5">
-                  <Building className="w-4 h-4 text-slate-400" />
-                  <span>Available in {city} — {matchingProperties.length}</span>
-                </h3>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-xs uppercase tracking-widest font-bold text-slate-500 flex items-center gap-1.5">
+                    <Building className="w-4 h-4 text-slate-400" />
+                    <span>Available in {city} — {matchingProperties.length}</span>
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slate-500">
+                      Last updated: {lastUpdatedAt.toLocaleTimeString('en-GB')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void refreshMatches({ manual: true });
+                      }}
+                      disabled={isRefreshingMatches}
+                      className="px-3 py-1.5 rounded-full border border-black/[0.08] text-[11px] font-semibold uppercase tracking-wider hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      {isRefreshingMatches ? 'Refreshing...' : 'Refresh matches'}
+                    </button>
+                  </div>
+                </div>
+                {refreshError ? <p className="text-xs text-rose-600 font-medium">{refreshError}</p> : null}
+                {newMatchesCount > 0 ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 text-xs text-emerald-800 flex items-center justify-between">
+                    <span>New matches found: {newMatchesCount}</span>
+                    <button
+                      type="button"
+                      onClick={() => setNewMatchesCount(0)}
+                      className="font-semibold uppercase tracking-wider"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                ) : null}
 
-                {matchingProperties.length === 0 ? (
-                  <div className="bg-white rounded-2xl p-8 border border-black/[0.03] text-center space-y-2">
-                    <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
-                    <h4 className="font-serif text-sm font-semibold">No criteria match</h4>
-                    <p className="text-slate-500 text-xs font-light leading-relaxed">
-                      Try increasing the rent limit or allowing more heating types.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                    {matchingProperties.map((property) => (
-                      <div key={property.id} className="bg-white rounded-xl overflow-hidden border border-black/[0.02] flex gap-3 p-3 hover:shadow-md transition-all duration-300">
-                        <div className="w-20 h-20 bg-slate-100 rounded-lg overflow-hidden shrink-0">
-                          <img src={property.image} alt={property.title} className="w-full h-full object-cover" />
-                        </div>
-                        <div className="flex-grow min-w-0 flex flex-col justify-between">
-                          <div>
-                            <h4 className="text-xs font-semibold truncate text-[#1d1d1f]">{property.title}</h4>
-                            <p className="text-[10px] text-slate-400 font-light truncate">{property.address}</p>
-                          </div>
-                          <div className="flex items-center justify-between pt-1 border-t border-black/[0.01] text-[10px]">
-                            <span className="font-semibold text-[#1d1d1f]">EUR {property.baseRent + property.utilityCosts} warm</span>
-                            <span className="text-slate-500 font-mono">{property.area} sqm • {property.rooms} rooms</span>
-                          </div>
-                        </div>
+                <AnimatePresence mode="wait" initial={false}>
+                  {matchingProperties.length === 0 ? (
+                    <motion.div
+                      key="matcher-empty"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.22, ease: 'easeOut' }}
+                      className="bg-white rounded-2xl p-8 border border-black/[0.03] text-center space-y-2"
+                    >
+                      <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
+                      <h4 className="font-serif text-sm font-semibold">No criteria match</h4>
+                      <p className="text-slate-500 text-xs font-light leading-relaxed">
+                        Try one of the quick actions below.
+                      </p>
+                      <div className="pt-2 flex flex-wrap justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setMaxTotalRent((value) => value + 200)}
+                          className="px-3 py-1.5 rounded-full border border-black/[0.08] text-[11px] font-semibold uppercase tracking-wider hover:bg-slate-50"
+                        >
+                          Increase max rent
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMinRooms((value) => Math.max(1, Number((value - 0.5).toFixed(1))))}
+                          className="px-3 py-1.5 rounded-full border border-black/[0.08] text-[11px] font-semibold uppercase tracking-wider hover:bg-slate-50"
+                        >
+                          Lower min rooms
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMinArea((value) => Math.max(15, value - 5))}
+                          className="px-3 py-1.5 rounded-full border border-black/[0.08] text-[11px] font-semibold uppercase tracking-wider hover:bg-slate-50"
+                        >
+                          Lower min area
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="matcher-list"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.22, ease: 'easeOut' }}
+                      className="space-y-3 max-h-[420px] overflow-y-auto pr-1"
+                    >
+                      {matchingProperties.map((property) => (
+                        <div key={property.id} className="bg-white rounded-xl overflow-hidden border border-black/[0.02] flex gap-3 p-3 hover:shadow-md transition-all duration-300">
+                          <div className="w-20 h-20 bg-slate-100 rounded-lg overflow-hidden shrink-0">
+                            <img src={property.image} alt={property.title} className="w-full h-full object-cover" />
+                          </div>
+                          <div className="flex-grow min-w-0 flex flex-col justify-between">
+                            <div>
+                              <h4 className="text-xs font-semibold truncate text-[#1d1d1f]">{property.title}</h4>
+                              <p className="text-[10px] text-slate-400 font-light truncate">{property.address}</p>
+                            </div>
+                            <div className="flex items-center justify-between pt-1 border-t border-black/[0.01] text-[10px]">
+                              <span className="font-semibold text-[#1d1d1f]">EUR {property.baseRent + property.utilityCosts} warm</span>
+                              <span className="text-slate-500 font-mono">{property.area} sqm • {property.rooms} rooms</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </section>
           </div>
         </main>
-
-        <AppFooter divisionLabel="Smart Matcher Division" />
       </div>
 
+      <AnimatePresence>
       {isSubmitted ? (
-        <div className="fixed inset-0 z-50 bg-[#1d1d1f]/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6 text-center space-y-4">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          className="fixed inset-0 z-50 bg-[#1d1d1f]/60 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.985 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6 text-center space-y-4"
+          >
             <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-6 h-6" />
             </div>
@@ -301,9 +469,10 @@ export default function MatcherClientPage({ user, properties }: MatcherClientPag
             >
               Continue matching
             </button>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       ) : null}
+      </AnimatePresence>
     </div>
   );
 }

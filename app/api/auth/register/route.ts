@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { databaseConnect } from '@/lib/db'; 
+import { getDefaultRouteForRole } from '@/lib/types';
 import { hashPassword } from '@/utils/password';
 import { generateToken } from '@/utils/jwt';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
-import { data } from 'framer-motion/client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,8 +36,8 @@ export async function POST(request: NextRequest) {
       await conn.beginTransaction();
 
       const [result] = await conn.execute<ResultSetHeader>(
-        'INSERT INTO users (email, password_hash) VALUES (?, ?)',
-        [email, hashedPassword]
+        'INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)',
+        [email, hashedPassword, 'CLIENT']
       );
 
       newUserId = result.insertId;
@@ -73,7 +73,8 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({ 
       message: 'Registration successful', 
-      role: assignedRole 
+      role: assignedRole,
+      redirectTo: getDefaultRouteForRole(assignedRole)
     }, { status: 201 });
 
     response.cookies.set('session_token', token, {

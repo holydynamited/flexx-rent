@@ -3,6 +3,8 @@ import { RowDataPacket } from 'mysql2';
 import type { Property } from '@/components/catalog/types';
 import { databaseConnect } from '@/lib/db';
 import { getSessionUser } from '@/lib/server/getSessionUser';
+import { getDefaultRouteForRole, isClientRole } from '@/lib/types';
+import { redirect } from 'next/navigation';
 
 
 
@@ -95,6 +97,9 @@ async function getPropertyCatalog(): Promise<Property[]> {
 
 export default async function CatalogPage() {
   const user = await getSessionUser();
+  if (user && !isClientRole(user.role)) {
+    redirect(getDefaultRouteForRole(user.role));
+  }
   const properties = await getPropertyCatalog();
 
   return <CatalogClientPage user={user} properties={properties} />;

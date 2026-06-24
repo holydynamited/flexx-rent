@@ -1,26 +1,40 @@
 export type AgentTab = 'bookings' | 'properties';
-export type BookingStatus = 'Pending' | 'AwaitingPayment' | 'Paid' | 'Cancelled';
+export type BookingStatus = 'NEW' | 'PENDING_PAYMENT' | 'RESERVED' | 'CANCELLED';
+export type VerificationStatus = 'VERIFIED' | 'PENDING' | 'REJECTED';
+export type AgentPaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELED';
 
 export interface AgentProperty {
-  id: string;
+  id: number;
   title: string;
   address: string;
   baseRent: number;
   utilityCosts: number;
   rooms: number;
   area: number;
-  status: 'Available' | 'Rented';
+  status: 'Available' | 'Pending payment' | 'Reserved' | 'Archived';
+  dbStatus: 'AVAILABLE' | 'PENDING_PAYMENT' | 'RESERVED' | 'ARCHIVED';
   imagePlaceholder: string;
 }
 
 export interface AgentBooking {
-  id: string;
-  propertyId: string;
-  propertyName: string;
-  clientName: string;
-  clientEmail: string;
-  clientStatus: 'Verified';
-  requestedDate: string;
+  id: number;
+  createdAt: string;
+  expiresAt: string;
   status: BookingStatus;
-  timeLeft: number | null;
+  property: {
+    id: number;
+    title: string;
+    address: string;
+    image: string;
+  };
+  client: {
+    id: number;
+    fullName: string;
+    email: string;
+    verificationStatus: VerificationStatus;
+  };
+  payment: {
+    status: AgentPaymentStatus;
+    paidAt: string | null;
+  };
 }

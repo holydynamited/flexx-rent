@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
 
 import { databaseConnect } from '@/lib/db';
-import { verifyToken } from '@/utils/jwt';
-
-interface ProfileRow extends RowDataPacket {
-  id: number;
-}
+import { requireApiProfile } from '@/lib/server/apiAuth';
 
 interface SearchQuestionnaireRow extends RowDataPacket {
   id: number;
@@ -25,37 +21,14 @@ interface SaveQuestionnaireBody {
   isActive?: unknown;
 }
 
-async function getUserProfileIdOrResponse(request: NextRequest): Promise<number | NextResponse> {
-  const token = request.cookies.get('session_token')?.value;
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const payload = await verifyToken(token);
-  if (!payload) {
-    return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
-  }
-
-  const [profiles] = await databaseConnect.execute<ProfileRow[]>(
-    'SELECT id FROM profiles WHERE user_id = ? LIMIT 1',
-    [payload.userId]
-  );
-
-  if (!profiles.length) {
-    return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-  }
-
-  return profiles[0].id;
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const profileIdOrResponse = await getUserProfileIdOrResponse(request);
-    if (profileIdOrResponse instanceof NextResponse) {
-      return profileIdOrResponse;
+    const authProfileOrResponse = await requireApiProfile(request);
+    if (authProfileOrResponse instanceof NextResponse) {
+      return authProfileOrResponse;
     }
 
-    const profileId = profileIdOrResponse;
+    const profileId = authProfileOrResponse.profileId;
     const [rows] = await databaseConnect.execute<SearchQuestionnaireRow[]>(
       `
         SELECT id, city, max_total_rent, min_rooms, min_area_sqm, is_active
@@ -93,12 +66,12 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const profileIdOrResponse = await getUserProfileIdOrResponse(request);
-    if (profileIdOrResponse instanceof NextResponse) {
-      return profileIdOrResponse;
+    const authProfileOrResponse = await requireApiProfile(request);
+    if (authProfileOrResponse instanceof NextResponse) {
+      return authProfileOrResponse;
     }
 
-    const profileId = profileIdOrResponse;
+    const profileId = authProfileOrResponse.profileId;
     const body = (await request.json()) as SaveQuestionnaireBody;
 
     const city = typeof body.city === 'string' ? body.city.trim() : '';

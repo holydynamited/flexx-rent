@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { CheckCircle2, FileCheck2, Home, ShieldCheck, Wallet } from 'lucide-react';
 import AppHeader from '@/components/layout/AppHeader';
 import AppFooter from '@/components/layout/AppFooter';
+import { getSessionUser } from '@/lib/server/getSessionUser';
 
 const steps = [
   {
@@ -26,10 +27,12 @@ const steps = [
   },
 ];
 
-export default function HowItWorksPage() {
+export default async function HowItWorksPage() {
+  const user = await getSessionUser();
+
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] flex flex-col">
-      <AppHeader user={null} brandSubtitle="Platform Guide" />
+      <AppHeader user={user} brandSubtitle="Platform Guide" />
 
       <main className="max-w-6xl mx-auto w-full px-4 md:px-6 py-10 md:py-14 space-y-8">
         <section className="bg-white rounded-3xl p-8 md:p-10 border border-black/[0.02] shadow-xl shadow-black/[0.02]">
@@ -72,9 +75,11 @@ export default function HowItWorksPage() {
         <section className="bg-white rounded-2xl p-6 border border-black/[0.02] shadow-sm flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
           <p className="text-sm text-slate-600">Ready to begin? Create an account or explore available properties.</p>
           <div className="flex gap-3">
-            <Link href="/register" className="px-5 py-2.5 rounded-full bg-[#1d1d1f] text-white text-xs font-semibold uppercase tracking-wider hover:bg-black transition-colors">
-              Create account
-            </Link>
+            {!user ? (
+              <Link href="/register" className="px-5 py-2.5 rounded-full bg-[#1d1d1f] text-white text-xs font-semibold uppercase tracking-wider hover:bg-black transition-colors">
+                Create account
+              </Link>
+            ) : null}
             <Link href="/catalog" className="px-5 py-2.5 rounded-full border border-black/[0.1] text-xs font-semibold uppercase tracking-wider hover:bg-slate-50 transition-colors">
               Open catalog
             </Link>

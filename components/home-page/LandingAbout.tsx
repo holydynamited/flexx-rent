@@ -16,7 +16,7 @@ export default function LandingAbout() {
           </div>
           <div className="lg:col-span-7 text-slate-600 font-light leading-relaxed text-base space-y-6">
             <p>
-              In Germany's largest cities, quality apartments receive dozens of applications within days. <strong>FlexxRent</strong> helps you stand out with a complete tenant file — ID, <strong>SCHUFA</strong>, and income proof — ready before you even schedule a viewing.
+              In Germany&apos;s largest cities, quality apartments receive dozens of applications within days. <strong>FlexxRent</strong> helps you stand out with a complete tenant file — ID, <strong>SCHUFA</strong>, and income proof — ready before you even schedule a viewing.
             </p>
             <p>
               Once your profile is verified, you can apply to listed properties nationwide without starting from scratch each time. Less paperwork, faster responses, and a smoother path from first inquiry to signed lease.

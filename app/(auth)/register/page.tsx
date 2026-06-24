@@ -41,14 +41,17 @@ export default function RegisterPage() {
         body: JSON.stringify({ email, password }),
       });
       
-      const data = await response.json();
+      const data = (await response.json()) as {
+        error?: string;
+        redirectTo?: string;
+      };
 
       if (!response.ok) {
         setError(data.error || 'Registration failed');
         return; 
       }
 
-      router.push('/');
+      router.push(data.redirectTo || '/');
       router.refresh();
 
     } catch (err) {

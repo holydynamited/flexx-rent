@@ -18,6 +18,10 @@ interface BookingListItem {
     price: number;
     image: string;
   };
+  payment: {
+    status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELED';
+    transactionId: string | null;
+  };
 }
 
 interface MyBookingsResponse {
@@ -63,10 +67,26 @@ function statusClasses(status: BookingStatus): string {
   if (status === 'NEW') {
     return 'bg-blue-50 text-blue-700 border-blue-100';
   }
-  if (status === 'PENDING') {
+  if (status === 'PENDING_PAYMENT') {
     return 'bg-amber-50 text-amber-700 border-amber-100';
   }
+  if (status === 'RESERVED') {
+    return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+  }
   return 'bg-slate-100 text-slate-600 border-slate-200';
+}
+
+function formatBookingBadgeLabel(status: BookingStatus): string {
+  if (status === 'NEW') {
+    return 'AWAITING AGENT CONFIRMATION';
+  }
+  if (status === 'PENDING_PAYMENT') {
+    return 'AWAITING PAYMENT CONFIRMATION';
+  }
+  if (status === 'CANCELLED') {
+    return 'CANCELLED';
+  }
+  return 'RESERVED';
 }
 
 export default function MyBookingsClientPage({ user }: { user: HeaderUser }) {
@@ -74,6 +94,7 @@ export default function MyBookingsClientPage({ user }: { user: HeaderUser }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancelingId, setCancelingId] = useState<number | null>(null);
+  const [payingId, setPayingId] = useState<number | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -93,7 +114,7 @@ export default function MyBookingsClientPage({ user }: { user: HeaderUser }) {
         if (active) {
           setBookings(Array.isArray(data.bookings) ? data.bookings : []);
         }
-      } catch (loadError) {
+      } catch {
         if (active) {
           setError('Connection error. Please try again later.');
         }
@@ -122,7 +143,7 @@ export default function MyBookingsClientPage({ user }: { user: HeaderUser }) {
 
   const hasBookings = bookings.length > 0;
   const activeCount = useMemo(
-    () => bookings.filter((booking) => booking.status === 'NEW' || booking.status === 'PENDING').length,
+    () => bookings.filter((booking) => booking.status === 'NEW' || booking.status === 'PENDING_PAYMENT').length,
     [bookings]
   );
 
@@ -152,6 +173,76 @@ export default function MyBookingsClientPage({ user }: { user: HeaderUser }) {
     }
   };
 
+  const handlePay = async (booking: BookingListItem) => {
+    if (payingId === booking.id) {
+      return;
+    }
+    setPayingId(booking.id);
+    try {
+      let transactionId = booking.payment.transactionId;
+
+      if (!transactionId || booking.payment.status !== 'PENDING') {
+        const createResponse = await fetch('/api/payments/create-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId: booking.id }),
+        });
+        const createPayload = (await createResponse.json().catch(() => null)) as
+          | { transactionId?: string; alreadyPaid?: boolean; error?: string }
+          | null;
+        if (!createResponse.ok) {
+          window.alert(createPayload?.error || 'Failed to create payment intent.');
+          return;
+        }
+        if (createPayload?.alreadyPaid) {
+          setBookings((previous) =>
+            previous.map((item) =>
+              item.id === booking.id
+                ? { ...item, payment: { ...item.payment, status: 'SUCCESS' } }
+                : item
+            )
+          );
+          return;
+        }
+        transactionId = createPayload?.transactionId || null;
+      }
+
+      if (!transactionId) {
+        window.alert('Payment transaction was not created.');
+        return;
+      }
+
+      const confirmResponse = await fetch('/api/payments/mock-confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionId }),
+      });
+      const confirmPayload = (await confirmResponse.json().catch(() => null)) as
+        | { error?: string; bookingStatus?: BookingStatus }
+        | null;
+      if (!confirmResponse.ok) {
+        window.alert(confirmPayload?.error || 'Payment failed.');
+        return;
+      }
+
+      setBookings((previous) =>
+        previous.map((item) =>
+          item.id === booking.id
+            ? {
+                ...item,
+                    status: confirmPayload?.bookingStatus || 'RESERVED',
+                payment: { status: 'SUCCESS', transactionId },
+              }
+            : item
+        )
+      );
+    } catch {
+      window.alert('Connection error. Please try again later.');
+    } finally {
+      setPayingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] font-sans font-light tracking-tight flex flex-col antialiased selection:bg-[#1d1d1f] selection:text-white">
       <AppHeader user={user} brandSubtitle="Germany Division" />
@@ -161,7 +252,7 @@ export default function MyBookingsClientPage({ user }: { user: HeaderUser }) {
           <span className="text-xs uppercase tracking-[0.25em] text-slate-500 font-semibold block">Client Dashboard</span>
           <h1 className="text-3xl md:text-4xl font-serif text-[#1d1d1f] tracking-tight">My bookings</h1>
           <p className="text-slate-500 font-light max-w-2xl text-sm md:text-base leading-relaxed">
-            Track your booking requests, monitor `NEW` expiration timers, and cancel requests when needed.
+            Track your booking requests, monitor payment hold timers, and complete payment before expiration.
           </p>
         </section>
 
@@ -171,7 +262,7 @@ export default function MyBookingsClientPage({ user }: { user: HeaderUser }) {
               Total: {bookings.length}
             </span>
             <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold">
-              Active (NEW/PENDING): {activeCount}
+              Active bookings: {activeCount}
             </span>
           </div>
         </section>
@@ -190,9 +281,13 @@ export default function MyBookingsClientPage({ user }: { user: HeaderUser }) {
         ) : (
           <div className="space-y-4">
             {bookings.map((booking) => {
-              const canCancel = booking.status === 'NEW' || booking.status === 'PENDING';
+              const canCancel =
+                (booking.status === 'NEW' || booking.status === 'PENDING_PAYMENT') &&
+                booking.payment.status !== 'SUCCESS';
+              const canPay = booking.status === 'PENDING_PAYMENT' && booking.payment.status !== 'SUCCESS';
               const isCanceling = cancelingId === booking.id;
-              const timeLeft = booking.status === 'NEW' ? formatTimeLeft(booking.expiresAt, nowMs) : null;
+              const isPaying = payingId === booking.id;
+              const timeLeft = booking.status === 'PENDING_PAYMENT' ? formatTimeLeft(booking.expiresAt, nowMs) : null;
 
               return (
                 <article
@@ -212,9 +307,15 @@ export default function MyBookingsClientPage({ user }: { user: HeaderUser }) {
                       <h2 className="font-serif text-xl">{booking.property.title}</h2>
                       <p className="text-xs text-slate-500">{booking.property.address}</p>
                     </div>
-                    <span className={`text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border font-semibold ${statusClasses(booking.status)}`}>
-                      {booking.status}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border font-semibold ${statusClasses(
+                          booking.status
+                        )}`}
+                      >
+                        {formatBookingBadgeLabel(booking.status)}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
@@ -236,12 +337,24 @@ export default function MyBookingsClientPage({ user }: { user: HeaderUser }) {
                     </div>
                   </div>
 
-                  {canCancel ? (
-                    <div className="flex justify-end">
+                  {canCancel || canPay ? (
+                    <div className="flex justify-end gap-2">
+                      {canPay ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handlePay(booking);
+                          }}
+                          disabled={isPaying || isCanceling}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-full text-xs font-semibold transition disabled:opacity-60"
+                        >
+                          {isPaying ? 'Processing payment...' : 'Pay now'}
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => handleCancel(booking.id)}
-                        disabled={isCanceling}
+                        disabled={isCanceling || isPaying}
                         className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-full text-xs font-semibold transition disabled:opacity-60"
                       >
                         {isCanceling ? 'Cancelling...' : 'Cancel booking'}

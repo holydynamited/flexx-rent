@@ -1,6 +1,8 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
 import AppHeader from '@/components/layout/AppHeader';
 import AppFooter from '@/components/layout/AppFooter';
 import type { HeaderUser } from '@/components/layout/types';
@@ -18,6 +20,9 @@ interface CatalogClientPageProps {
 }
 
 export default function CatalogClientPage({ user, properties }: CatalogClientPageProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState('All');
   const [minPrice, setMinPrice] = useState('');
@@ -89,6 +94,42 @@ export default function CatalogClientPage({ user, properties }: CatalogClientPag
     sortBy,
   ]);
 
+  useEffect(() => {
+    const rawPropertyId = searchParams.get('propertyId');
+    if (!rawPropertyId) {
+      return;
+    }
+
+    const propertyId = Number(rawPropertyId);
+    if (!Number.isInteger(propertyId) || propertyId <= 0) {
+      return;
+    }
+
+    const matched = properties.find((property) => property.id === propertyId);
+    if (!matched) {
+      return;
+    }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedProperty((current) => (current?.id === matched.id ? current : matched));
+  }, [searchParams, properties]);
+
+  const handleSelectProperty = (property: Property) => {
+    setSelectedProperty(property);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('propertyId', String(property.id));
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  };
+
+  const handleClosePropertyModal = () => {
+    setSelectedProperty(null);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('propertyId');
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  };
+
   const handleSendEnquiry = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedProperty || bookingInProgress) {
@@ -113,7 +154,7 @@ export default function CatalogClientPage({ user, properties }: CatalogClientPag
       setEnquirySent(true);
       window.setTimeout(() => {
         setEnquirySent(false);
-        setSelectedProperty(null);
+        handleClosePropertyModal();
       }, 2200);
     } catch (error) {
       console.error('Booking creation error:', error);
@@ -173,34 +214,57 @@ export default function CatalogClientPage({ user, properties }: CatalogClientPag
           onViewModeChange={setViewMode}
         />
 
-        {filteredProperties.length === 0 ? (
-          <div className="bg-white rounded-3xl py-20 px-6 text-center space-y-4 shadow-xl shadow-black/[0.01]">
-            <div className="text-4xl">🔍</div>
-            <h3 className="font-serif text-xl font-medium">No matches found</h3>
-            <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-              No properties match the current filters. Try removing constraints or widening your price and area ranges.
-            </p>
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="bg-[#1d1d1f] hover:bg-black text-white px-6 py-2.5 rounded-full text-xs font-semibold transition shadow active:scale-95"
+        <AnimatePresence mode="wait" initial={false}>
+          {filteredProperties.length === 0 ? (
+            <motion.div
+              key="catalog-empty-state"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="bg-white rounded-3xl py-20 px-6 text-center space-y-4 shadow-xl shadow-black/[0.01]"
             >
-              Reset all filters
-            </button>
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredProperties.map((property) => (
-              <PropertyCard key={property.id} property={property} onSelect={setSelectedProperty} />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {filteredProperties.map((property) => (
-              <PropertyListItem key={property.id} property={property} onSelect={setSelectedProperty} />
-            ))}
-          </div>
-        )}
+              <div className="text-4xl">🔍</div>
+              <h3 className="font-serif text-xl font-medium">No matches found</h3>
+              <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                No properties match the current filters. Try removing constraints or widening your price and area ranges.
+              </p>
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="bg-[#1d1d1f] hover:bg-black text-white px-6 py-2.5 rounded-full text-xs font-semibold transition shadow active:scale-95"
+              >
+                Reset all filters
+              </button>
+            </motion.div>
+          ) : viewMode === 'grid' ? (
+            <motion.div
+              key="catalog-grid-view"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+            >
+              {filteredProperties.map((property) => (
+                <PropertyCard key={property.id} property={property} onSelect={handleSelectProperty} />
+              ))}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="catalog-list-view"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="space-y-6"
+            >
+              {filteredProperties.map((property) => (
+                <PropertyListItem key={property.id} property={property} onSelect={handleSelectProperty} />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       <AppFooter divisionLabel="Germany Real Estate Division" />
@@ -211,7 +275,7 @@ export default function CatalogClientPage({ user, properties }: CatalogClientPag
           user = {user}
           enquirySent={enquirySent}
           bookingInProgress={bookingInProgress}
-          onClose={() => setSelectedProperty(null)}
+          onClose={handleClosePropertyModal}
           onSubmit={handleSendEnquiry}
         />
       ) : null}

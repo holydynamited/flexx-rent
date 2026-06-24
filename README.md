@@ -26,12 +26,51 @@ Apply these SQL migrations to `flexxrent_db` before testing Admin/Agent CRM APIs
 
 1. `db/migrations/20260624_admin_crm_columns.sql`
 2. `db/migrations/20260624_agent_crm_schema_sync.sql`
+3. `db/migrations/20260624_payments_mvp.sql`
+4. `db/migrations/20260624_matcher_questionnaire.sql`
+5. `db/migrations/20260625_booking_flow_p0.sql`
 
 Example:
 
 ```bash
 mysql -u root flexxrent_db -e "source db/migrations/20260624_admin_crm_columns.sql"
 mysql -u root flexxrent_db -e "source db/migrations/20260624_agent_crm_schema_sync.sql"
+mysql -u root flexxrent_db -e "source db/migrations/20260624_payments_mvp.sql"
+mysql -u root flexxrent_db -e "source db/migrations/20260624_matcher_questionnaire.sql"
+mysql -u root flexxrent_db -e "source db/migrations/20260625_booking_flow_p0.sql"
+```
+
+## Payments MVP (Sandbox)
+
+Set webhook secret in `.env`:
+
+```bash
+PAYMENT_WEBHOOK_SECRET=dev_payment_secret_change_me
+```
+
+Payment flow endpoints:
+
+- `POST /api/payments/create-intent` - create pending payment transaction for a booking
+- `POST /api/payments/mock-confirm` - sandbox provider confirmation used by client UI
+- `POST /api/payments/webhook` - signed webhook endpoint (`x-payment-signature`)
+
+Business rule used by webhook processing:
+
+- agent approval moves booking/property to payment hold:
+  - booking: `NEW -> PENDING_PAYMENT`
+  - property: `AVAILABLE -> PENDING_PAYMENT`
+- successful payment (`SUCCESS`) finalizes booking/property:
+  - booking: `PENDING_PAYMENT -> RESERVED` (legacy `PENDING` is normalized)
+  - property: `PENDING_PAYMENT -> RESERVED`
+- expired unpaid hold is auto-cancelled when key booking/payment APIs run:
+  - booking: `PENDING_PAYMENT -> CANCELLED`
+  - property: `PENDING_PAYMENT -> AVAILABLE`
+- failed payment keeps booking status unchanged
+
+Local webhook test example:
+
+```bash
+node -e "const crypto=require('crypto');const payload=JSON.stringify({eventId:'evt_local_1',transactionId:'tx_local_1',bookingId:1,amount:1000,status:'SUCCESS',paidAt:new Date().toISOString()});const sig=crypto.createHmac('sha256',process.env.PAYMENT_WEBHOOK_SECRET).update(payload).digest('hex');console.log('signature:',sig);console.log('payload:',payload)"
 ```
 
 ## Learn More

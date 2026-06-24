@@ -15,7 +15,7 @@ export default function LandingHero() {
           </h1>
           
           <p className="text-slate-600 font-light text-base md:text-lg leading-relaxed max-w-lg">
-            Automated tenant profile verification system. Streamline your Schufa and Selbstauskunft submission process to clear operational leases without proxy queues.
+          Forget about endless paperwork and queues. Submit your documents online and secure your apartment today.
           </p>
           
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 pt-4">

@@ -6,6 +6,7 @@ import type { HeaderUser } from '@/components/layout/types';
 import type { MatcherProperty } from '@/components/matcher/types';
 import { databaseConnect } from '@/lib/db';
 import { getSessionUser } from '@/lib/server/getSessionUser';
+import { getDefaultRouteForRole, isClientRole } from '@/lib/types';
 
 interface MatcherPropertyRow extends RowDataPacket {
   id: number;
@@ -82,7 +83,9 @@ export default async function MatcherPage() {
   const isDevelopment = process.env.NODE_ENV === 'development';
 
   if (!user && !isDevelopment) redirect('/login');
-  if (user && user.role !== 'CLIENT' && !isDevelopment) redirect('/');
+  if (user && !isClientRole(user.role) && !isDevelopment) {
+    redirect(getDefaultRouteForRole(user.role));
+  }
 
   const resolvedUser: HeaderUser =
     user ??

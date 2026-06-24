@@ -1,29 +1,26 @@
 export type AdminTab = 'verification' | 'accounts' | 'finances';
-export type VerificationTab = 'Pending' | 'Verified' | 'Rejected';
+export type VerificationTab = 'PENDING' | 'VERIFIED' | 'REJECTED';
 export type RoleFilter = 'ALL' | 'CLIENT' | 'AGENT';
 export type PayoutFilter = 'ALL' | 'PENDING' | 'CALCULATED';
 
 export interface DocumentInfo {
   name: string;
-  size: string;
   uploadedAt: string;
-  status: 'Uploaded' | 'Verified' | 'Rejected';
-  score?: string;
 }
 
 export interface ClientDocuments {
-  idCard: DocumentInfo;
-  schufa: DocumentInfo;
-  selbstauskunft: DocumentInfo;
+  idCard: DocumentInfo | null;
+  schufa: DocumentInfo | null;
+  tenantSelfDisclosure: DocumentInfo | null;
 }
 
 export interface AdminProfile {
-  id: string;
+  id: number;
+  userId: number;
   fullName: string;
   email: string;
-  registrationDate: string;
   role: 'CLIENT' | 'AGENT';
-  status: 'Pending' | 'Verified' | 'Rejected';
+  status: VerificationTab;
   rejectionReason?: string;
   isBlocked: boolean;
   documents?: ClientDocuments;
@@ -31,16 +28,15 @@ export interface AdminProfile {
 }
 
 export interface PaymentLedgerRow {
-  id: string;
-  clientName: string;
-  agentName: string;
-  agentId: string;
-  propertyTitle: string;
+  id: number;
+  bookingId: number;
+  client: string;
+  agent: string;
+  property: string;
   baseRent: number;
-  utilityCosts: number;
   deposit: number;
   totalPaid: number;
-  paymentDate: string;
-  status: 'PAID';
+  paymentDate: string | null;
   payoutCalculated: boolean;
+  payoutPaidAt: string | null;
 }

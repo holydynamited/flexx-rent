@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { RowDataPacket } from 'mysql2';
 
 import { databaseConnect } from '@/lib/db';
-import { verifyToken } from '@/utils/jwt';
+import { requireApiProfile } from '@/lib/server/apiAuth';
+import { expireOverdueBookings } from '@/lib/server/bookings';
 import type { BookingStatus } from '@/lib/types';
-
-interface ProfileRow extends RowDataPacket {
-  id: number;
-}
 
 interface BookingListRow extends RowDataPacket {
   id: number;
@@ -21,48 +18,32 @@ interface BookingListRow extends RowDataPacket {
   postal_code: string;
   city: string;
   image_url: string | null;
+  payment_status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELED' | null;
+  payment_transaction_id: string | null;
 }
 
 const CATALOG_FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1200&q=80';
 
-async function getUserProfileIdOrResponse(request: NextRequest): Promise<number | NextResponse> {
-  const token = request.cookies.get('session_token')?.value;
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const payload = await verifyToken(token);
-  if (!payload) {
-    return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
-  }
-
-  const [profiles] = await databaseConnect.execute<ProfileRow[]>(
-    'SELECT id FROM profiles WHERE user_id = ? LIMIT 1',
-    [payload.userId]
-  );
-
-  if (!profiles.length) {
-    return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-  }
-
-  return profiles[0].id;
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const profileIdOrResponse = await getUserProfileIdOrResponse(request);
-    if (profileIdOrResponse instanceof NextResponse) {
-      return profileIdOrResponse;
+    await expireOverdueBookings();
+
+    const authProfileOrResponse = await requireApiProfile(request);
+    if (authProfileOrResponse instanceof NextResponse) {
+      return authProfileOrResponse;
     }
 
-    const profileId = profileIdOrResponse;
+    const profileId = authProfileOrResponse.profileId;
 
     const [rows] = await databaseConnect.execute<BookingListRow[]>(
       `
         SELECT
           b.id,
-          b.status,
+          CASE
+            WHEN b.status = 'PENDING' THEN 'PENDING_PAYMENT'
+            ELSE b.status
+          END AS status,
           b.created_at,
           b.expires_at,
           p.id AS property_id,
@@ -77,11 +58,25 @@ export async function GET(request: NextRequest) {
             WHERE pi.property_id = p.id
             ORDER BY pi.sort_order ASC, pi.id ASC
             LIMIT 1
-          ) AS image_url
+          ) AS image_url,
+          (
+            SELECT pay.transaction_status
+            FROM payments pay
+            WHERE pay.booking_id = b.id
+            ORDER BY pay.id DESC
+            LIMIT 1
+          ) AS payment_status,
+          (
+            SELECT pay.transaction_id
+            FROM payments pay
+            WHERE pay.booking_id = b.id
+            ORDER BY pay.id DESC
+            LIMIT 1
+          ) AS payment_transaction_id
         FROM bookings b
         JOIN properties p ON p.id = b.property_id
         WHERE b.client_profile_id = ?
-          AND b.status IN ('NEW', 'PENDING', 'CANCELLED')
+          AND b.status IN ('NEW', 'PENDING', 'PENDING_PAYMENT', 'RESERVED', 'CANCELLED')
         ORDER BY b.created_at DESC, b.id DESC
       `,
       [profileId]
@@ -98,6 +93,10 @@ export async function GET(request: NextRequest) {
         address: `${row.street_address}, ${row.postal_code} ${row.city}`,
         price: Number(row.base_rent) || 0,
         image: row.image_url || CATALOG_FALLBACK_IMAGE,
+      },
+      payment: {
+        status: row.payment_status || 'PENDING',
+        transactionId: row.payment_transaction_id,
       },
     }));
 

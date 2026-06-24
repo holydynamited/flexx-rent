@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { databaseConnect } from '@/lib/db'; 
+import { hasColumn } from '@/lib/server/dbSchema';
+import { getDefaultRouteForRole } from '@/lib/types';
+import type { UserRole } from '@/lib/types';
 import { verifyPassword } from '@/utils/password';
 import { generateToken } from '@/utils/jwt';
 
@@ -9,7 +12,8 @@ import { RowDataPacket } from 'mysql2';
 interface UserRow extends RowDataPacket {
   id: number;
   password_hash: string;
-  role: string;
+  role: UserRole;
+  is_blocked?: number;
 }
 
 export async function POST(request: NextRequest) {
@@ -28,13 +32,20 @@ export async function POST(request: NextRequest) {
     const cleanEmail = email.trim();
 
 
+    const isBlockedColumnPresent = await hasColumn('users', 'is_blocked');
+    const blockedProjection = isBlockedColumnPresent ? ', is_blocked' : ', 0 AS is_blocked';
+
     const [users] = await databaseConnect.execute<UserRow[]>(
-      'SELECT id, password_hash, role FROM users WHERE email = ?',
+      `SELECT id, password_hash, role${blockedProjection} FROM users WHERE email = ?`,
       [cleanEmail]
     );
 
     if (users.length === 0 || !(await verifyPassword(password, users[0].password_hash))) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    }
+
+    if (Boolean(Number(users[0].is_blocked ?? 0))) {
+      return NextResponse.json({ error: 'Account is blocked' }, { status: 403 });
     }
 
     const token = await generateToken({
@@ -43,9 +54,11 @@ export async function POST(request: NextRequest) {
       role: users[0].role
     });
 
+    const role = users[0].role;
     const response = NextResponse.json({ 
       message: 'Login successful', 
-      role: users[0].role 
+      role,
+      redirectTo: getDefaultRouteForRole(role)
     });
 
     response.cookies.set('session_token', token, {

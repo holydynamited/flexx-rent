@@ -31,12 +31,12 @@ export default function PropertyDetailsModal({
   const router = useRouter();
   const [docs, setDocs] = useState<DocumentState | null>(null);
   const [loadingDocs, setLoadingDocs] = useState(false);
-  const hasRequiredDocs = Boolean(docs?.idCard && docs?.schufa && docs?.tenantSelfDisclosure);
+  const [isVisible, setIsVisible] = useState(false);
+  const effectiveDocs = user ? docs : null;
+  const hasRequiredDocs = Boolean(effectiveDocs?.idCard && effectiveDocs?.schufa && effectiveDocs?.tenantSelfDisclosure);
 
   useEffect(() => {
     if (!user) {
-      setDocs(null);
-      setLoadingDocs(false);
       return;
     }
 
@@ -71,14 +71,38 @@ export default function PropertyDetailsModal({
     };
   }, [user]);
 
+  useEffect(() => {
+    const animationFrame = window.requestAnimationFrame(() => {
+      setIsVisible(true);
+    });
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, []);
+
+  const handleClose = () => {
+    setIsVisible(false);
+    window.setTimeout(() => {
+      onClose();
+    }, 180);
+  };
+
 
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1d1d1f]/60 backdrop-blur-md p-4 overflow-y-auto">
-      <div className="bg-white rounded-[32px] max-w-4xl w-full shadow-2xl relative overflow-hidden flex flex-col md:flex-row my-8 max-h-[90vh]">
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-[#1d1d1f]/60 backdrop-blur-md p-4 overflow-y-auto transition-opacity duration-200 ${
+        isVisible ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      <div
+        className={`bg-white rounded-[32px] max-w-4xl w-full shadow-2xl relative overflow-hidden flex flex-col md:flex-row my-8 max-h-[90vh] transition-all duration-300 ease-out ${
+          isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-3 scale-[0.98]'
+        }`}
+      >
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-6 right-6 z-10 w-9 h-9 bg-[#1d1d1f] hover:bg-black text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
