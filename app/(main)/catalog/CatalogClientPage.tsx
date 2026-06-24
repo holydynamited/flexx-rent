@@ -9,14 +9,29 @@ import CatalogToolbar from '@/components/catalog/CatalogToolbar';
 import PropertyCard from '@/components/catalog/PropertyCard';
 import PropertyListItem from '@/components/catalog/PropertyListItem';
 import PropertyDetailsModal from '@/components/catalog/PropertyDetailsModal';
-import { GERMANY_PROPERTIES } from '@/components/catalog/properties';
-import type { Property, RoomsCount, SortBy, ViewMode } from '@/components/catalog/types';
+import type { PropertyRow, RoomsCount, SortBy, ViewMode } from '@/components/catalog/types';
+
 
 interface CatalogClientPageProps {
   user: HeaderUser | null;
+  properties: PropertyRow[];
 }
 
-export default function CatalogClientPage({ user }: CatalogClientPageProps) {
+const inferPropertyType = (title: string): string => {
+  const lowerTitle = title.toLowerCase();
+  if (lowerTitle.includes('penthouse')) return 'Penthouse';
+  if (lowerTitle.includes('loft')) return 'Loft';
+  if (lowerTitle.includes('studio')) return 'Studio';
+  if (lowerTitle.includes('villa')) return 'Villa';
+  return 'Apartment';
+};
+
+const hasAmenity = (amenitiesText: string | null, keyword: string): boolean => {
+  if (!amenitiesText) return false;
+  return amenitiesText.toLowerCase().includes(keyword.toLowerCase());
+};
+
+export default function CatalogClientPage({ user, properties }: CatalogClientPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState('All');
   const [selectedType, setSelectedType] = useState('All');
@@ -34,7 +49,7 @@ export default function CatalogClientPage({ user }: CatalogClientPageProps) {
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortBy>('price-asc');
-  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<PropertyRow | null>(null);
   const [enquirySent, setEnquirySent] = useState(false);
   const [enquiryForm, setEnquiryForm] = useState({ name: '', email: '', message: '' });
   const [favorites, setFavorites] = useState<number[]>([1, 5]);
@@ -61,31 +76,36 @@ export default function CatalogClientPage({ user }: CatalogClientPageProps) {
   };
 
   const filteredProperties = useMemo(() => {
-    return GERMANY_PROPERTIES.filter((property) => {
+    return properties.filter((property) => {
       const lowerQuery = searchQuery.toLowerCase();
+      const propertyType = inferPropertyType(property.title);
+
       const matchesSearch =
         searchQuery === '' ||
         property.title.toLowerCase().includes(lowerQuery) ||
-        property.address.toLowerCase().includes(lowerQuery) ||
+        property.street_address.toLowerCase().includes(lowerQuery) ||
         property.city.toLowerCase().includes(lowerQuery);
 
       const matchesCity = selectedCity === 'All' || property.city === selectedCity;
-      const matchesType = selectedType === 'All' || property.type === selectedType;
-      const matchesMinPrice = minPrice === '' || property.price >= Number(minPrice);
-      const matchesMaxPrice = maxPrice === '' || property.price <= Number(maxPrice);
-      const matchesMinArea = minArea === '' || property.area >= Number(minArea);
-      const matchesMaxArea = maxArea === '' || property.area <= Number(maxArea);
+      const matchesType = selectedType === 'All' || propertyType === selectedType;
+      const priceValue = Number(property.base_rent);
+      const areaValue = Number(property.area_sqm);
+      const roomsValue = Number(property.rooms_count);
+      const matchesMinPrice = minPrice === '' || priceValue >= Number(minPrice);
+      const matchesMaxPrice = maxPrice === '' || priceValue <= Number(maxPrice);
+      const matchesMinArea = minArea === '' || areaValue >= Number(minArea);
+      const matchesMaxArea = maxArea === '' || areaValue <= Number(maxArea);
 
       let matchesRooms = true;
       if (roomsCount !== 'Any') {
-        matchesRooms = roomsCount === '4+' ? property.rooms >= 4 : property.rooms === Number(roomsCount);
+        matchesRooms = roomsCount === '4+' ? roomsValue >= 4 : roomsValue === Number(roomsCount);
       }
 
-      const matchesFurnished = !filterFurnished || property.furnished;
-      const matchesPets = !filterPets || property.petsAllowed;
-      const matchesBalcony = !filterBalcony || property.hasBalcony;
-      const matchesParking = !filterParking || property.hasParking;
-      const matchesKitchen = !filterKitchen || property.hasKitchen;
+      const matchesFurnished = !filterFurnished || hasAmenity(property.amenities_text, 'furnished');
+      const matchesPets = !filterPets || hasAmenity(property.amenities_text, 'pet');
+      const matchesBalcony = !filterBalcony || hasAmenity(property.amenities_text, 'balcony');
+      const matchesParking = !filterParking || hasAmenity(property.amenities_text, 'parking');
+      const matchesKitchen = !filterKitchen || hasAmenity(property.amenities_text, 'kitchen');
 
       return (
         matchesSearch &&
@@ -103,12 +123,18 @@ export default function CatalogClientPage({ user }: CatalogClientPageProps) {
         matchesKitchen
       );
     }).sort((a, b) => {
-      if (sortBy === 'price-asc') return a.price - b.price;
-      if (sortBy === 'price-desc') return b.price - a.price;
-      if (sortBy === 'area-desc') return b.area - a.area;
+      const aPrice = Number(a.base_rent);
+      const bPrice = Number(b.base_rent);
+      const aArea = Number(a.area_sqm);
+      const bArea = Number(b.area_sqm);
+
+      if (sortBy === 'price-asc') return aPrice - bPrice;
+      if (sortBy === 'price-desc') return bPrice - aPrice;
+      if (sortBy === 'area-desc') return bArea - aArea;
       return 0;
     });
   }, [
+    properties,
     searchQuery,
     selectedCity,
     selectedType,
@@ -190,7 +216,7 @@ export default function CatalogClientPage({ user }: CatalogClientPageProps) {
 
         <CatalogToolbar
           matchedCount={filteredProperties.length}
-          totalCount={GERMANY_PROPERTIES.length}
+          totalCount={properties.length}
           sortBy={sortBy}
           viewMode={viewMode}
           onSortByChange={setSortBy}
@@ -218,7 +244,6 @@ export default function CatalogClientPage({ user }: CatalogClientPageProps) {
               <PropertyCard
                 key={property.id}
                 property={property}
-                isFavorite={favorites.includes(property.id)}
                 onToggleFavorite={handleToggleFavorite}
                 onSelect={setSelectedProperty}
               />
@@ -230,7 +255,6 @@ export default function CatalogClientPage({ user }: CatalogClientPageProps) {
               <PropertyListItem
                 key={property.id}
                 property={property}
-                isFavorite={favorites.includes(property.id)}
                 onToggleFavorite={handleToggleFavorite}
                 onSelect={setSelectedProperty}
               />

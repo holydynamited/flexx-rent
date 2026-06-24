@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import type { Property } from '@/components/catalog/types';
+import type { PropertyRow } from '@/components/catalog/types';
 
 interface EnquiryForm {
   name: string;
@@ -8,7 +8,7 @@ interface EnquiryForm {
 }
 
 interface PropertyDetailsModalProps {
-  property: Property;
+  property: PropertyRow;
   enquirySent: boolean;
   enquiryForm: EnquiryForm;
   onClose: () => void;
@@ -38,14 +38,18 @@ export default function PropertyDetailsModal({
         </button>
 
         <div className="md:w-1/2 relative bg-slate-100 min-h-[250px] md:min-h-full">
-          <img src={property.image} alt={property.title} className="absolute inset-0 w-full h-full object-cover" />
+          <img
+            src={property.images?.[0]?.image_url || ''}
+            alt={property.title}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           <div className="absolute bottom-8 left-8 text-white space-y-1">
             <span className="text-[10px] uppercase tracking-wider text-white/70 bg-white/10 backdrop-blur px-2.5 py-1 rounded-full font-bold">
-              {property.city} • {property.type}
+              {property.city} • {property.heating_type}
             </span>
             <h3 className="font-serif text-2xl font-bold mt-2">{property.title}</h3>
-            <p className="text-white/60 text-xs font-light">{property.address}</p>
+            <p className="text-white/60 text-xs font-light">{property.street_address}</p>
           </div>
         </div>
 
@@ -59,26 +63,29 @@ export default function PropertyDetailsModal({
             <div className="grid grid-cols-2 gap-4 border-t border-b border-black/[0.04] py-4 text-xs">
               <div>
                 <span className="text-slate-400 block">Living area:</span>
-                <p className="font-semibold text-sm text-[#1d1d1f]">{property.area} sqm</p>
+                <p className="font-semibold text-sm text-[#1d1d1f]">{property.area_sqm} sqm</p>
               </div>
               <div>
                 <span className="text-slate-400 block">Rooms:</span>
-                <p className="font-semibold text-sm text-[#1d1d1f]">{property.rooms}</p>
+                <p className="font-semibold text-sm text-[#1d1d1f]">{property.rooms_count}</p>
               </div>
               <div>
                 <span className="text-slate-400 block">Available from:</span>
-                <p className="font-semibold text-sm text-[#1d1d1f]">{property.availableFrom}</p>
+                <p className="font-semibold text-sm text-[#1d1d1f]">{property.created_at}</p>
               </div>
               <div>
                 <span className="text-slate-400 block">Deposit:</span>
-                <p className="font-semibold text-sm text-[#1d1d1f]">{property.deposit} EUR</p>
+                <p className="font-semibold text-sm text-[#1d1d1f]">{property.deposit_amount} EUR</p>
               </div>
             </div>
 
             <div className="space-y-2">
               <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-bold">Amenities</span>
               <div className="flex flex-wrap gap-1.5">
-                {property.amenities.map((amenity) => (
+                {(property.amenities_text
+                  ? property.amenities_text.split(',').map((item) => item.trim()).filter(Boolean)
+                  : []
+                ).map((amenity) => (
                   <span key={amenity} className="bg-[#f5f5f7] text-[#1d1d1f] text-[10px] font-medium px-3 py-1 rounded-full">
                     {amenity}
                   </span>
@@ -92,7 +99,7 @@ export default function PropertyDetailsModal({
               <div>
                 <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-semibold">Monthly cold rent</span>
                 <span className="text-2xl font-serif font-bold text-[#1d1d1f]">
-                  {property.price} EUR <span className="text-xs font-sans font-light text-slate-400">/ month</span>
+                  {property.base_rent} EUR <span className="text-xs font-sans font-light text-slate-400">/ month</span>
                 </span>
               </div>
             </div>
