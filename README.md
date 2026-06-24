@@ -20,6 +20,20 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Database Migrations
+
+Apply these SQL migrations to `flexxrent_db` before testing Admin/Agent CRM APIs:
+
+1. `db/migrations/20260624_admin_crm_columns.sql`
+2. `db/migrations/20260624_agent_crm_schema_sync.sql`
+
+Example:
+
+```bash
+mysql -u root flexxrent_db -e "source db/migrations/20260624_admin_crm_columns.sql"
+mysql -u root flexxrent_db -e "source db/migrations/20260624_agent_crm_schema_sync.sql"
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
