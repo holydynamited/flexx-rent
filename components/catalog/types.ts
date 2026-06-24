@@ -3,21 +3,23 @@ export interface Property {
   title: string;
   address: string;
   city: string;
-  type: 'Apartment' | 'Loft' | 'Penthouse' | 'Studio' | 'Villa';
   price: number;
+  utilityCosts: number;
   deposit: number;
   area: number;
   rooms: number;
-  floor: string;
-  availableFrom: string;
   image: string;
   description: string;
-  furnished: boolean;
-  petsAllowed: boolean;
-  hasBalcony: boolean;
-  hasParking: boolean;
-  hasKitchen: boolean;
   amenities: string[];
+  heatingType?: string;
+  type?: 'Apartment' | 'Loft' | 'Penthouse' | 'Studio' | 'Villa';
+  availableFrom?: string;
+  floor?: string;
+  furnished?: boolean;
+  petsAllowed?: boolean;
+  hasBalcony?: boolean;
+  hasParking?: boolean;
+  hasKitchen?: boolean;
 }
 
 export type SortBy = 'price-asc' | 'price-desc' | 'area-desc';

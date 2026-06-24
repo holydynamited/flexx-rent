@@ -1,29 +1,78 @@
-import type { FormEvent } from 'react';
-import type { Property } from '@/components/catalog/types';
+'use client';
 
-interface EnquiryForm {
-  name: string;
-  email: string;
-  message: string;
-}
+import type { FormEvent } from 'react';
+import { useEffect, useState } from 'react';
+import { ArrowRightIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import type { Property } from '@/components/catalog/types';
+import type { HeaderUser } from '@/components/layout/types';
+import type { DocumentState } from '@/components/profile-settings/types';
 
 interface PropertyDetailsModalProps {
   property: Property;
   enquirySent: boolean;
-  enquiryForm: EnquiryForm;
+  bookingInProgress: boolean;
   onClose: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onEnquiryFormChange: (form: EnquiryForm) => void;
+  user: HeaderUser | null;
 }
+
+
+
 
 export default function PropertyDetailsModal({
   property,
   enquirySent,
-  enquiryForm,
+  bookingInProgress,
   onClose,
   onSubmit,
-  onEnquiryFormChange,
+  user,
 }: PropertyDetailsModalProps) {
+  const router = useRouter();
+  const [docs, setDocs] = useState<DocumentState | null>(null);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const hasRequiredDocs = Boolean(docs?.idCard && docs?.schufa && docs?.tenantSelfDisclosure);
+
+  useEffect(() => {
+    if (!user) {
+      setDocs(null);
+      setLoadingDocs(false);
+      return;
+    }
+
+    let cancelled = false;
+    const loadDocs = async () => {
+      setLoadingDocs(true);
+      try {
+        const res = await fetch('/api/documents', {
+          method: 'GET',
+          cache: 'no-store',
+        });
+        if (!res.ok) {
+          if (!cancelled) {
+            setDocs(null);
+          }
+          return;
+        }
+        const data = (await res.json()) as { documents?: DocumentState };
+        if (!cancelled) {
+          setDocs(data.documents ?? null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingDocs(false);
+        }
+      }
+    };
+
+    void loadDocs();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1d1d1f]/60 backdrop-blur-md p-4 overflow-y-auto">
       <div className="bg-white rounded-[32px] max-w-4xl w-full shadow-2xl relative overflow-hidden flex flex-col md:flex-row my-8 max-h-[90vh]">
@@ -42,7 +91,7 @@ export default function PropertyDetailsModal({
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           <div className="absolute bottom-8 left-8 text-white space-y-1">
             <span className="text-[10px] uppercase tracking-wider text-white/70 bg-white/10 backdrop-blur px-2.5 py-1 rounded-full font-bold">
-              {property.city} • {property.type}
+              {property.city}
             </span>
             <h3 className="font-serif text-2xl font-bold mt-2">{property.title}</h3>
             <p className="text-white/60 text-xs font-light">{property.address}</p>
@@ -67,7 +116,7 @@ export default function PropertyDetailsModal({
               </div>
               <div>
                 <span className="text-slate-400 block">Available from:</span>
-                <p className="font-semibold text-sm text-[#1d1d1f]">{property.availableFrom}</p>
+                <p className="font-semibold text-sm text-[#1d1d1f]">{property.availableFrom || 'N/A'}</p>
               </div>
               <div>
                 <span className="text-slate-400 block">Deposit:</span>
@@ -78,7 +127,7 @@ export default function PropertyDetailsModal({
             <div className="space-y-2">
               <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-bold">Amenities</span>
               <div className="flex flex-wrap gap-1.5">
-                {property.amenities.map((amenity) => (
+                {(property.amenities.length ? property.amenities : ['Not specified']).map((amenity) => (
                   <span key={amenity} className="bg-[#f5f5f7] text-[#1d1d1f] text-[10px] font-medium px-3 py-1 rounded-full">
                     {amenity}
                   </span>
@@ -100,34 +149,46 @@ export default function PropertyDetailsModal({
             {enquirySent ? (
               <div className="p-4 bg-emerald-50 text-emerald-800 text-xs rounded-2xl border border-emerald-100 flex flex-col items-center justify-center text-center space-y-1 py-6">
                 <span className="text-xl">Success</span>
-                <p className="font-semibold">Enquiry sent successfully.</p>
-                <p className="text-[10px] text-emerald-600 font-light">An agent will contact you with next steps.</p>
+                <p className="font-semibold">Booking request created.</p>
+                <p className="text-[10px] text-emerald-600 font-light">Current status: NEW</p>
               </div>
             ) : (
               <form onSubmit={onSubmit} className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="text-[9px] uppercase text-slate-400 font-bold block">Message to landlord</label>
-                  <textarea
-                    required
-                    rows={2}
-                    value={enquiryForm.message}
-                    onChange={(event) => onEnquiryFormChange({ ...enquiryForm, message: event.target.value })}
-                    placeholder={`Hello, I am interested in ${property.title}.`}
-                    className="w-full text-xs p-3 bg-[#f5f5f7] border-none rounded-xl focus:ring-1 focus:ring-slate-400 focus:outline-none resize-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-[#1d1d1f] hover:bg-black text-white py-3 rounded-full text-xs font-semibold transition active:scale-95 shadow-lg shadow-black/5"
-                >
-                  Contact agent
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
+                {user ? (
+                  loadingDocs ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="w-full bg-[#1d1d1f]/80 text-white py-3 rounded-full text-xs font-semibold cursor-not-allowed"
+                    >
+                      Checking your documents...
+                    </button>
+                  ) : hasRequiredDocs ? (
+                    <button
+                      type="submit"
+                      disabled={bookingInProgress}
+                      className="w-full bg-[#1d1d1f] cursor-pointer hover:bg-black text-white py-3 rounded-full text-xs font-semibold transition active:scale-95 shadow-lg shadow-black/5"
+                    >
+                      {bookingInProgress ? 'Creating booking...' : 'Book apartment'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => router.push('/profile-settings')}
+                      className="w-full bg-[#1d1d1f] cursor-pointer hover:bg-black text-white py-3 rounded-full text-xs font-semibold transition active:scale-95 shadow-lg shadow-black/5 inline-flex items-center justify-center gap-2"
+                    >
+                      Upload documents
+                      <ArrowRightIcon className="w-4 h-4" />
+                    </button>
+                  )
+                ) : (
+                  <p className="text-xs text-slate-600 font-light leading-relaxed">Please login to book an apartment.</p>
+                )}
+            </form>
+        )}
       </div>
+    </div>
+  </div>
     </div>
   );
 }

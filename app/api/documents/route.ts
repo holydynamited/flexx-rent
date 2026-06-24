@@ -47,6 +47,29 @@ function formatUploadedAt(value: string | Date): string {
   });
 }
 
+function getDocumentBaseName(dbDocumentType: string): string {
+  switch (dbDocumentType) {
+    case 'ID_CARD':
+      return 'id_card';
+    case 'SHUFA':
+      return 'shufa';
+    case 'INCOME_STATEMENT':
+      return 'income_statement';
+    default:
+      return dbDocumentType.toLowerCase();
+  }
+}
+
+function getVersionFromFilePath(filePath: string): number {
+  const fileName = filePath.split('/').pop() ?? '';
+  const match = fileName.match(/\+(\d+)\.pdf$/i);
+  if (!match) {
+    return 0;
+  }
+  const parsed = Number.parseInt(match[1], 10);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 async function getUserProfileIdOrResponse(request: NextRequest): Promise<number | NextResponse> {
   const token = request.cookies.get('session_token')?.value;
   if (!token) {
@@ -137,19 +160,93 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid document type' }, { status: 400 });
     }
 
-    const filePath = `/mock/${dbDocumentType.toLowerCase()}.pdf`;
+    const [existingRows] = await databaseConnect.execute<DocumentRow[]>(
+      `
+        SELECT id, file_path, uploaded_at, document_type
+        FROM documents
+        WHERE profile_id = ? AND document_type = ?
+        ORDER BY uploaded_at DESC, id DESC
+        LIMIT 1
+      `,
+      [profileId, dbDocumentType]
+    );
+
+    const existing = existingRows[0] ?? null;
+    const nextVersion = existing ? getVersionFromFilePath(existing.file_path) + 1 : 0;
+    const baseName = getDocumentBaseName(dbDocumentType);
+    const versionSuffix = nextVersion > 0 ? `+${nextVersion}` : '';
+    const fileName = `${baseName}${versionSuffix}.pdf`;
+    const filePath = `/mock/${fileName}`;
+
+    if (existing) {
+      await databaseConnect.execute(
+        `
+          UPDATE documents
+          SET file_path = ?, uploaded_at = NOW()
+          WHERE id = ?
+        `,
+        [filePath, existing.id]
+      );
+    } else {
+      await databaseConnect.execute(
+        `
+          INSERT INTO documents (profile_id, document_type, file_path, uploaded_at)
+          VALUES (?, ?, ?, NOW())
+        `,
+        [profileId, dbDocumentType, filePath]
+      );
+    }
+
+    return NextResponse.json(
+      {
+        message: 'Document uploaded successfully',
+        document: {
+          name: fileName,
+          size: 'PDF',
+          uploadedAt: 'Today',
+        },
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('Error uploading the documents:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const isInternalDelete = request.headers.get('x-internal-delete-docs') === '1';
+    if (!isInternalDelete) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const profileIdOrResponse = await getUserProfileIdOrResponse(request);
+    if (profileIdOrResponse instanceof NextResponse) {
+      return profileIdOrResponse;
+    }
+
+    const profileId = profileIdOrResponse;
+    const body = await request.json();
+
+    const documentTypeInput = typeof body.documentType === 'string' ? body.documentType : '';
+    const dbDocumentType = typeToDbType[documentTypeInput];
+
+    if (!dbDocumentType) {
+      return NextResponse.json({ error: 'Invalid document type' }, { status: 400 });
+    }
 
     await databaseConnect.execute(
       `
-        INSERT INTO documents (profile_id, document_type, file_path, uploaded_at)
-        VALUES (?, ?, ?, NOW())
+        DELETE FROM documents
+        WHERE profile_id = ? AND document_type = ?
       `,
-      [profileId, dbDocumentType, filePath]
+      [profileId, dbDocumentType]
     );
 
-    return NextResponse.json({ message: 'Document uploaded successfully' }, { status: 201 });
+    return NextResponse.json({ message: 'Document deleted successfully' }, { status: 200 });
   } catch (error) {
-    console.error('Error uploading the documents:', error);
+    console.error('Error deleting document:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -83,7 +83,7 @@ export interface Property {
 // 4. LEASEHOLD & TRANSACTION TYPES
 // ==========================================
 
-export type BookingStatus = 'NEW' | 'PENDING_PAYMENT' | 'RESERVED' | 'CANCELLED';
+export type BookingStatus = 'NEW' | 'PENDING' | 'CANCELLED';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED';
 
 export interface Booking {

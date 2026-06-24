@@ -1,14 +1,11 @@
-import type { MouseEvent } from 'react';
 import type { Property } from '@/components/catalog/types';
 
 interface PropertyListItemProps {
   property: Property;
-  isFavorite: boolean;
-  onToggleFavorite: (id: number, event: MouseEvent<HTMLButtonElement>) => void;
   onSelect: (property: Property) => void;
 }
 
-export default function PropertyListItem({ property, isFavorite, onToggleFavorite, onSelect }: PropertyListItemProps) {
+export default function PropertyListItem({ property, onSelect }: PropertyListItemProps) {
   return (
     <div
       onClick={() => onSelect(property)}
@@ -16,25 +13,6 @@ export default function PropertyListItem({ property, isFavorite, onToggleFavorit
     >
       <div className="md:col-span-4 relative aspect-[16/10] md:aspect-auto min-h-[180px] bg-slate-100">
         <img src={property.image} alt={property.title} className="absolute inset-0 w-full h-full object-cover" />
-        <button
-          type="button"
-          onClick={(event) => onToggleFavorite(property.id, event)}
-          className="absolute top-4 left-4 w-9 h-9 bg-white/80 backdrop-blur rounded-full flex items-center justify-center hover:bg-white transition shadow-md"
-        >
-          <svg
-            className={`w-4 h-4 transition-colors ${isFavorite ? 'text-red-500 fill-current' : 'text-[#1d1d1f]/60'}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.8}
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-            />
-          </svg>
-        </button>
         <div className="absolute bottom-4 left-4 bg-[#1d1d1f]/85 backdrop-blur text-white text-[9px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
           {property.city}
         </div>
@@ -44,10 +22,7 @@ export default function PropertyListItem({ property, isFavorite, onToggleFavorit
         <div className="space-y-3">
           <div className="flex justify-between items-start gap-4">
             <div>
-              <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold bg-[#f5f5f7] px-2.5 py-1 rounded-full">
-                {property.type}
-              </span>
-              <h3 className="font-serif text-xl font-medium text-[#1d1d1f] mt-2 group-hover:text-slate-600 transition-colors leading-none">
+              <h3 className="font-serif text-xl font-medium text-[#1d1d1f] group-hover:text-slate-600 transition-colors leading-none">
                 {property.title}
               </h3>
             </div>

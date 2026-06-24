@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type FormEvent, type MouseEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import AppHeader from '@/components/layout/AppHeader';
 import AppFooter from '@/components/layout/AppFooter';
 import type { HeaderUser } from '@/components/layout/types';
@@ -9,59 +9,41 @@ import CatalogToolbar from '@/components/catalog/CatalogToolbar';
 import PropertyCard from '@/components/catalog/PropertyCard';
 import PropertyListItem from '@/components/catalog/PropertyListItem';
 import PropertyDetailsModal from '@/components/catalog/PropertyDetailsModal';
-import { GERMANY_PROPERTIES } from '@/components/catalog/properties';
+
 import type { Property, RoomsCount, SortBy, ViewMode } from '@/components/catalog/types';
 
 interface CatalogClientPageProps {
   user: HeaderUser | null;
+  properties: Property[];
 }
 
-export default function CatalogClientPage({ user }: CatalogClientPageProps) {
+export default function CatalogClientPage({ user, properties }: CatalogClientPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState('All');
-  const [selectedType, setSelectedType] = useState('All');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [minArea, setMinArea] = useState('');
   const [maxArea, setMaxArea] = useState('');
   const [roomsCount, setRoomsCount] = useState<RoomsCount>('Any');
 
-  const [filterFurnished, setFilterFurnished] = useState(false);
-  const [filterPets, setFilterPets] = useState(false);
-  const [filterBalcony, setFilterBalcony] = useState(false);
-  const [filterParking, setFilterParking] = useState(false);
-  const [filterKitchen, setFilterKitchen] = useState(false);
-
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortBy>('price-asc');
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [enquirySent, setEnquirySent] = useState(false);
-  const [enquiryForm, setEnquiryForm] = useState({ name: '', email: '', message: '' });
-  const [favorites, setFavorites] = useState<number[]>([1, 5]);
-
-  const handleToggleFavorite = (id: number, event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    setFavorites((previous) => (previous.includes(id) ? previous.filter((favId) => favId !== id) : [...previous, id]));
-  };
+  const [bookingInProgress, setBookingInProgress] = useState(false);
 
   const handleResetFilters = () => {
     setSearchQuery('');
     setSelectedCity('All');
-    setSelectedType('All');
     setMinPrice('');
     setMaxPrice('');
     setMinArea('');
     setMaxArea('');
     setRoomsCount('Any');
-    setFilterFurnished(false);
-    setFilterPets(false);
-    setFilterBalcony(false);
-    setFilterParking(false);
-    setFilterKitchen(false);
   };
 
   const filteredProperties = useMemo(() => {
-    return GERMANY_PROPERTIES.filter((property) => {
+    return properties.filter((property) => {
       const lowerQuery = searchQuery.toLowerCase();
       const matchesSearch =
         searchQuery === '' ||
@@ -70,7 +52,6 @@ export default function CatalogClientPage({ user }: CatalogClientPageProps) {
         property.city.toLowerCase().includes(lowerQuery);
 
       const matchesCity = selectedCity === 'All' || property.city === selectedCity;
-      const matchesType = selectedType === 'All' || property.type === selectedType;
       const matchesMinPrice = minPrice === '' || property.price >= Number(minPrice);
       const matchesMaxPrice = maxPrice === '' || property.price <= Number(maxPrice);
       const matchesMinArea = minArea === '' || property.area >= Number(minArea);
@@ -81,26 +62,14 @@ export default function CatalogClientPage({ user }: CatalogClientPageProps) {
         matchesRooms = roomsCount === '4+' ? property.rooms >= 4 : property.rooms === Number(roomsCount);
       }
 
-      const matchesFurnished = !filterFurnished || property.furnished;
-      const matchesPets = !filterPets || property.petsAllowed;
-      const matchesBalcony = !filterBalcony || property.hasBalcony;
-      const matchesParking = !filterParking || property.hasParking;
-      const matchesKitchen = !filterKitchen || property.hasKitchen;
-
       return (
         matchesSearch &&
         matchesCity &&
-        matchesType &&
         matchesMinPrice &&
         matchesMaxPrice &&
         matchesMinArea &&
         matchesMaxArea &&
-        matchesRooms &&
-        matchesFurnished &&
-        matchesPets &&
-        matchesBalcony &&
-        matchesParking &&
-        matchesKitchen
+        matchesRooms
       );
     }).sort((a, b) => {
       if (sortBy === 'price-asc') return a.price - b.price;
@@ -109,30 +78,49 @@ export default function CatalogClientPage({ user }: CatalogClientPageProps) {
       return 0;
     });
   }, [
+    properties,
     searchQuery,
     selectedCity,
-    selectedType,
     minPrice,
     maxPrice,
     minArea,
     maxArea,
     roomsCount,
-    filterFurnished,
-    filterPets,
-    filterBalcony,
-    filterParking,
-    filterKitchen,
     sortBy,
   ]);
 
-  const handleSendEnquiry = (event: FormEvent<HTMLFormElement>) => {
+  const handleSendEnquiry = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setEnquirySent(true);
-    window.setTimeout(() => {
-      setEnquirySent(false);
-      setSelectedProperty(null);
-      setEnquiryForm({ name: '', email: '', message: '' });
-    }, 2200);
+    if (!selectedProperty || bookingInProgress) {
+      return;
+    }
+
+    setBookingInProgress(true);
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propertyId: selectedProperty.id }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        const message = data?.error || 'Failed to create booking request.';
+        window.alert(message);
+        return;
+      }
+
+      setEnquirySent(true);
+      window.setTimeout(() => {
+        setEnquirySent(false);
+        setSelectedProperty(null);
+      }, 2200);
+    } catch (error) {
+      console.error('Booking creation error:', error);
+      window.alert('Connection error. Please try again later.');
+    } finally {
+      setBookingInProgress(false);
+    }
   };
 
   return (
@@ -161,36 +149,24 @@ export default function CatalogClientPage({ user }: CatalogClientPageProps) {
         <CatalogFilters
           searchQuery={searchQuery}
           selectedCity={selectedCity}
-          selectedType={selectedType}
           minPrice={minPrice}
           maxPrice={maxPrice}
           minArea={minArea}
           maxArea={maxArea}
           roomsCount={roomsCount}
-          filterFurnished={filterFurnished}
-          filterPets={filterPets}
-          filterBalcony={filterBalcony}
-          filterParking={filterParking}
-          filterKitchen={filterKitchen}
           onSearchQueryChange={setSearchQuery}
           onSelectedCityChange={setSelectedCity}
-          onSelectedTypeChange={setSelectedType}
           onMinPriceChange={setMinPrice}
           onMaxPriceChange={setMaxPrice}
           onMinAreaChange={setMinArea}
           onMaxAreaChange={setMaxArea}
           onRoomsCountChange={setRoomsCount}
-          onFilterFurnishedChange={setFilterFurnished}
-          onFilterPetsChange={setFilterPets}
-          onFilterBalconyChange={setFilterBalcony}
-          onFilterParkingChange={setFilterParking}
-          onFilterKitchenChange={setFilterKitchen}
           onReset={handleResetFilters}
         />
 
         <CatalogToolbar
           matchedCount={filteredProperties.length}
-          totalCount={GERMANY_PROPERTIES.length}
+          totalCount={properties.length}
           sortBy={sortBy}
           viewMode={viewMode}
           onSortByChange={setSortBy}
@@ -215,25 +191,13 @@ export default function CatalogClientPage({ user }: CatalogClientPageProps) {
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredProperties.map((property) => (
-              <PropertyCard
-                key={property.id}
-                property={property}
-                isFavorite={favorites.includes(property.id)}
-                onToggleFavorite={handleToggleFavorite}
-                onSelect={setSelectedProperty}
-              />
+              <PropertyCard key={property.id} property={property} onSelect={setSelectedProperty} />
             ))}
           </div>
         ) : (
           <div className="space-y-6">
             {filteredProperties.map((property) => (
-              <PropertyListItem
-                key={property.id}
-                property={property}
-                isFavorite={favorites.includes(property.id)}
-                onToggleFavorite={handleToggleFavorite}
-                onSelect={setSelectedProperty}
-              />
+              <PropertyListItem key={property.id} property={property} onSelect={setSelectedProperty} />
             ))}
           </div>
         )}
@@ -244,11 +208,11 @@ export default function CatalogClientPage({ user }: CatalogClientPageProps) {
       {selectedProperty ? (
         <PropertyDetailsModal
           property={selectedProperty}
+          user = {user}
           enquirySent={enquirySent}
-          enquiryForm={enquiryForm}
+          bookingInProgress={bookingInProgress}
           onClose={() => setSelectedProperty(null)}
           onSubmit={handleSendEnquiry}
-          onEnquiryFormChange={setEnquiryForm}
         />
       ) : null}
     </div>

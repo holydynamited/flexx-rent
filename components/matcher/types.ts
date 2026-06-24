@@ -12,3 +12,11 @@ export interface MatcherProperty {
   heating: HeatingType;
   image: string;
 }
+
+export interface SearchQuestionnaire {
+  city: string;
+  maxTotalRent: number;
+  minRooms: number;
+  minAreaSqm: number;
+  isActive: boolean;
+}

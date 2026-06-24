@@ -104,8 +104,9 @@ export default function ProfileSettingsClient({ initialProfile, initialDocuments
     triggerToast('Password was updated.');
   };
 
-  const handleFileUpload = async (docKey: keyof DocumentState, fileName: string) => {
+  const handleFileUpload = async (docKey: keyof DocumentState) => {
     try {
+      const hadDocumentBefore = Boolean(documents[docKey]);
       const response = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -120,18 +121,13 @@ export default function ProfileSettingsClient({ initialProfile, initialDocuments
 
       setDocuments((previous) => ({
         ...previous,
-        [docKey]: { name: fileName, size: 'PDF', uploadedAt: 'Today' },
+        [docKey]: data.document ?? { name: `${docKey}.pdf`, size: 'PDF', uploadedAt: 'Today' },
       }));
-      triggerToast(`${fileName} uploaded.`);
+      triggerToast(hadDocumentBefore ? 'Document updated.' : 'Document uploaded.');
     } catch (error) {
       console.error('Document upload error:', error);
       triggerToast('Connection error. Please try again later.');
     }
-  };
-
-  const handleFileDelete = (docKey: keyof DocumentState) => {
-    setDocuments((previous) => ({ ...previous, [docKey]: null }));
-    triggerToast('Document removed.');
   };
 
   return (
@@ -159,7 +155,7 @@ export default function ProfileSettingsClient({ initialProfile, initialDocuments
                   />
                 )}
                 {activeTab === 'documents' && (
-                  <DocumentsTab documents={documents} onUpload={handleFileUpload} onDelete={handleFileDelete} />
+                  <DocumentsTab documents={documents} onUpload={handleFileUpload} />
                 )}
                 {activeTab === 'notifications' && (
                   <NotificationsTab

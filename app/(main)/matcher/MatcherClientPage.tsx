@@ -1,49 +1,110 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { AlertCircle, Building, Check, CheckCircle2, Compass, Euro, Flame, Layers, MapPin, Send } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Building, CheckCircle2, Compass, Euro, Layers, MapPin, Send } from 'lucide-react';
 import AppHeader from '@/components/layout/AppHeader';
 import AppFooter from '@/components/layout/AppFooter';
-import { MOCK_PROPERTIES_DATABASE } from '@/components/matcher/mockData';
 import type { HeaderUser } from '@/components/layout/types';
-import type { HeatingType } from '@/components/matcher/types';
+import type { MatcherProperty } from '@/components/matcher/types';
 
 interface MatcherClientPageProps {
   user: HeaderUser;
+  properties: MatcherProperty[];
 }
 
-const HEATING_OPTIONS: Array<{ key: HeatingType; label: string }> = [
-  { key: 'GAS', label: 'Gas heating' },
-  { key: 'DISTRICT', label: 'District heating' },
-  { key: 'ELECTRIC', label: 'Electric heating' },
-  { key: 'HEAT_PUMP', label: 'Heat pump' },
-];
-
-export default function MatcherClientPage({ user }: MatcherClientPageProps) {
+export default function MatcherClientPage({ user, properties }: MatcherClientPageProps) {
   const [city, setCity] = useState('Munich');
-  const [maxBaseRent, setMaxBaseRent] = useState(1600);
-  const [maxUtilityCosts, setMaxUtilityCosts] = useState(300);
+  const [maxTotalRent, setMaxTotalRent] = useState(1900);
   const [minArea, setMinArea] = useState(40);
   const [minRooms, setMinRooms] = useState(2);
-  const [heatingTypes, setHeatingTypes] = useState<HeatingType[]>(['GAS', 'DISTRICT', 'HEAT_PUMP']);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const matchingProperties = useMemo(
-    () =>
-      MOCK_PROPERTIES_DATABASE.filter((property) => {
-        if (property.city.toLowerCase() !== city.toLowerCase()) return false;
-        if (property.baseRent > maxBaseRent) return false;
-        if (property.utilityCosts > maxUtilityCosts) return false;
-        if (property.area < minArea) return false;
-        if (property.rooms < minRooms) return false;
-        if (!heatingTypes.includes(property.heating)) return false;
-        return true;
-      }),
-    [city, maxBaseRent, maxUtilityCosts, minArea, minRooms, heatingTypes],
-  );
+  useEffect(() => {
+    let isCancelled = false;
 
-  const toggleHeatingType = (type: HeatingType) => {
-    setHeatingTypes((previous) => (previous.includes(type) ? previous.filter((item) => item !== type) : [...previous, type]));
+    const loadQuestionnaire = async () => {
+      try {
+        const response = await fetch('/api/search-questionnaire', { method: 'GET' });
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as {
+          questionnaire: {
+            city: string;
+            maxTotalRent: number;
+            minRooms: number;
+            minAreaSqm: number;
+            isActive: boolean;
+          } | null;
+        };
+        if (!data.questionnaire || isCancelled) {
+          return;
+        }
+
+        setCity(data.questionnaire.city || 'Munich');
+        setMaxTotalRent(Number(data.questionnaire.maxTotalRent) || 1900);
+        setMinRooms(Number(data.questionnaire.minRooms) || 2);
+        setMinArea(Number(data.questionnaire.minAreaSqm) || 40);
+      } catch {
+        // Keep defaults when preferences cannot be loaded.
+      }
+    };
+
+    void loadQuestionnaire();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const matchingProperties = useMemo(() => {
+    return properties.filter((property) => {
+      if (property.city.toLowerCase() !== city.toLowerCase()) return false;
+      if (property.baseRent + property.utilityCosts > maxTotalRent) return false;
+      if (property.area < minArea) return false;
+      if (property.rooms < minRooms) return false;
+      return true;
+    });
+  }, [properties, city, maxTotalRent, minArea, minRooms]);
+
+  const cityOptions = useMemo(() => {
+    const uniqueCities = new Set(properties.map((property) => property.city).filter(Boolean));
+    return Array.from(uniqueCities).sort((a, b) => a.localeCompare(b));
+  }, [properties]);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaveError(null);
+    setIsSaving(true);
+
+    try {
+      const response = await fetch('/api/search-questionnaire', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          city,
+          maxTotalRent,
+          minRooms,
+          minAreaSqm: minArea,
+          isActive: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        setSaveError(payload?.error || 'Failed to save preferences.');
+        return;
+      }
+
+      setIsSubmitted(true);
+    } catch {
+      setSaveError('Failed to save preferences.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -76,17 +137,11 @@ export default function MatcherClientPage({ user }: MatcherClientPageProps) {
               <div className="space-y-3 mb-8">
                 <h1 className="text-3xl md:text-4xl font-serif tracking-tight leading-tight">Housing preference questionnaire</h1>
                 <p className="text-slate-500 font-light text-sm tracking-tight">
-                  Configure your rental criteria. Listings are matched against available inventory in real-time.
+                  Criteria are synced with your saved search profile and matched against live available inventory.
                 </p>
               </div>
 
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  setIsSubmitted(true);
-                }}
-                className="space-y-8"
-              >
+              <form onSubmit={handleSubmit} className="space-y-8">
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 pb-1 border-b border-black/[0.04]">
                     <MapPin className="w-4 h-4 text-slate-400" />
@@ -97,9 +152,12 @@ export default function MatcherClientPage({ user }: MatcherClientPageProps) {
                     onChange={(event) => setCity(event.target.value)}
                     className="w-full bg-[#f5f5f7] border border-black/[0.05] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1d1d1f] focus:bg-white transition-all cursor-pointer font-medium"
                   >
-                    <option value="Munich">Munich</option>
-                    <option value="Nuremberg">Nuremberg</option>
-                    <option value="Augsburg">Augsburg</option>
+                    {cityOptions.length === 0 ? <option value="Munich">Munich</option> : null}
+                    {cityOptions.map((cityOption) => (
+                      <option key={cityOption} value={cityOption}>
+                        {cityOption}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -108,10 +166,7 @@ export default function MatcherClientPage({ user }: MatcherClientPageProps) {
                     <Euro className="w-4 h-4 text-slate-400" />
                     <h3 className="text-xs uppercase tracking-widest font-bold text-slate-500">Block 2: Budget</h3>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <NumberInput label="Max base rent" value={maxBaseRent} onChange={setMaxBaseRent} min={200} max={5000} step={50} />
-                    <NumberInput label="Max utility costs" value={maxUtilityCosts} onChange={setMaxUtilityCosts} min={50} max={1000} step={10} />
-                  </div>
+                  <NumberInput label="Max total rent (warm)" value={maxTotalRent} onChange={setMaxTotalRent} min={300} max={10000} step={50} />
                 </div>
 
                 <div className="space-y-4">
@@ -139,40 +194,15 @@ export default function MatcherClientPage({ user }: MatcherClientPageProps) {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-1 border-b border-black/[0.04]">
-                    <Flame className="w-4 h-4 text-slate-400" />
-                    <h3 className="text-xs uppercase tracking-widest font-bold text-slate-500">Block 4: Heating preferences</h3>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {HEATING_OPTIONS.map((option) => {
-                      const selected = heatingTypes.includes(option.key);
-                      return (
-                        <button
-                          key={option.key}
-                          type="button"
-                          onClick={() => toggleHeatingType(option.key)}
-                          className={`flex items-center justify-between p-3.5 rounded-xl border text-left transition-all ${selected ? 'bg-white border-[#1d1d1f] shadow-sm' : 'bg-[#f5f5f7] border-transparent hover:bg-black/[0.01]'}`}
-                        >
-                          <div className="space-y-0.5">
-                            <span className="text-xs font-medium block text-[#1d1d1f]">{option.label}</span>
-                            <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider font-semibold">{option.key}</span>
-                          </div>
-                          <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${selected ? 'bg-[#1d1d1f] border-[#1d1d1f]' : 'bg-white border-black/[0.08]'}`}>
-                            {selected ? <Check className="w-3.5 h-3.5 text-white" /> : null}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                {saveError ? <p className="text-xs text-rose-600 font-medium">{saveError}</p> : null}
 
                 <button
                   type="submit"
+                  disabled={isSaving}
                   className="w-full bg-[#1d1d1f] hover:bg-black text-white text-xs font-semibold uppercase tracking-widest py-4 rounded-full active:scale-[0.98] transition-all shadow-lg shadow-black/10 flex items-center justify-center gap-2"
                 >
                   <Send className="w-4 h-4" />
-                  Save matcher preferences
+                  {isSaving ? 'Saving...' : 'Save matcher preferences'}
                 </button>
               </form>
             </section>
@@ -191,7 +221,7 @@ export default function MatcherClientPage({ user }: MatcherClientPageProps) {
                     {matchingProperties.length > 0 ? `${matchingProperties.length} properties found` : 'No matching properties'}
                   </h2>
                   <p className="text-white/70 font-light text-xs leading-relaxed">
-                    Results update live whenever you change your criteria.
+                    Results update live from `properties` table based on your questionnaire limits.
                   </p>
                 </div>
               </div>
@@ -223,7 +253,7 @@ export default function MatcherClientPage({ user }: MatcherClientPageProps) {
                             <p className="text-[10px] text-slate-400 font-light truncate">{property.address}</p>
                           </div>
                           <div className="flex items-center justify-between pt-1 border-t border-black/[0.01] text-[10px]">
-                            <span className="font-semibold text-[#1d1d1f]">EUR {property.baseRent} / month</span>
+                            <span className="font-semibold text-[#1d1d1f]">EUR {property.baseRent + property.utilityCosts} warm</span>
                             <span className="text-slate-500 font-mono">{property.area} sqm • {property.rooms} rooms</span>
                           </div>
                         </div>
@@ -236,7 +266,7 @@ export default function MatcherClientPage({ user }: MatcherClientPageProps) {
           </div>
         </main>
 
-       
+        <AppFooter divisionLabel="Smart Matcher Division" />
       </div>
 
       {isSubmitted ? (
@@ -258,7 +288,7 @@ export default function MatcherClientPage({ user }: MatcherClientPageProps) {
               </div>
               <div className="flex justify-between">
                 <span>Base rent limit:</span>
-                <strong className="font-semibold text-[#1d1d1f]">up to EUR {maxBaseRent}</strong>
+                <strong className="font-semibold text-[#1d1d1f]">up to EUR {maxTotalRent} warm</strong>
               </div>
               <div className="flex justify-between">
                 <span>Property size:</span>

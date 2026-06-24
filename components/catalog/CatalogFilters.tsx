@@ -3,60 +3,36 @@ import type { RoomsCount } from '@/components/catalog/types';
 interface CatalogFiltersProps {
   searchQuery: string;
   selectedCity: string;
-  selectedType: string;
   minPrice: string;
   maxPrice: string;
   minArea: string;
   maxArea: string;
   roomsCount: RoomsCount;
-  filterFurnished: boolean;
-  filterPets: boolean;
-  filterBalcony: boolean;
-  filterParking: boolean;
-  filterKitchen: boolean;
   onSearchQueryChange: (value: string) => void;
   onSelectedCityChange: (value: string) => void;
-  onSelectedTypeChange: (value: string) => void;
   onMinPriceChange: (value: string) => void;
   onMaxPriceChange: (value: string) => void;
   onMinAreaChange: (value: string) => void;
   onMaxAreaChange: (value: string) => void;
   onRoomsCountChange: (value: RoomsCount) => void;
-  onFilterFurnishedChange: (value: boolean) => void;
-  onFilterPetsChange: (value: boolean) => void;
-  onFilterBalconyChange: (value: boolean) => void;
-  onFilterParkingChange: (value: boolean) => void;
-  onFilterKitchenChange: (value: boolean) => void;
   onReset: () => void;
 }
 
 export default function CatalogFilters({
   searchQuery,
   selectedCity,
-  selectedType,
   minPrice,
   maxPrice,
   minArea,
   maxArea,
   roomsCount,
-  filterFurnished,
-  filterPets,
-  filterBalcony,
-  filterParking,
-  filterKitchen,
   onSearchQueryChange,
   onSelectedCityChange,
-  onSelectedTypeChange,
   onMinPriceChange,
   onMaxPriceChange,
   onMinAreaChange,
   onMaxAreaChange,
   onRoomsCountChange,
-  onFilterFurnishedChange,
-  onFilterPetsChange,
-  onFilterBalconyChange,
-  onFilterParkingChange,
-  onFilterKitchenChange,
   onReset,
 }: CatalogFiltersProps) {
   return (
@@ -82,7 +58,7 @@ export default function CatalogFilters({
           />
         </div>
 
-        <div className="md:col-span-3 bg-[#f5f5f7] px-4 py-2 rounded-2xl flex flex-col justify-center">
+        <div className="md:col-span-6 bg-[#f5f5f7] px-4 py-2 rounded-2xl flex flex-col justify-center">
           <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">City</span>
           <select
             value={selectedCity}
@@ -96,22 +72,6 @@ export default function CatalogFilters({
             <option value="Frankfurt">Frankfurt</option>
             <option value="Dusseldorf">Dusseldorf</option>
             <option value="Cologne">Cologne</option>
-          </select>
-        </div>
-
-        <div className="md:col-span-3 bg-[#f5f5f7] px-4 py-2 rounded-2xl flex flex-col justify-center">
-          <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">Property type</span>
-          <select
-            value={selectedType}
-            onChange={(event) => onSelectedTypeChange(event.target.value)}
-            className="bg-transparent border-none text-xs font-semibold focus:outline-none cursor-pointer w-full mt-0.5 text-[#1d1d1f]"
-          >
-            <option value="All">Any type</option>
-            <option value="Apartment">Apartment</option>
-            <option value="Loft">Loft</option>
-            <option value="Penthouse">Penthouse</option>
-            <option value="Studio">Studio</option>
-            <option value="Villa">Villa</option>
           </select>
         </div>
       </div>
@@ -184,59 +144,7 @@ export default function CatalogFilters({
 
       <div className="h-px bg-black/[0.03]" />
 
-      <div className="flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center">
-        <div className="flex flex-wrap gap-4 items-center">
-          <label className="flex items-center space-x-2.5 cursor-pointer text-xs select-none">
-            <input
-              type="checkbox"
-              checked={filterFurnished}
-              onChange={(event) => onFilterFurnishedChange(event.target.checked)}
-              className="rounded accent-[#1d1d1f] w-4 h-4 cursor-pointer"
-            />
-            <span className="text-slate-600 font-medium">Furnished</span>
-          </label>
-
-          <label className="flex items-center space-x-2.5 cursor-pointer text-xs select-none">
-            <input
-              type="checkbox"
-              checked={filterPets}
-              onChange={(event) => onFilterPetsChange(event.target.checked)}
-              className="rounded accent-[#1d1d1f] w-4 h-4 cursor-pointer"
-            />
-            <span className="text-slate-600 font-medium">Pets allowed</span>
-          </label>
-
-          <label className="flex items-center space-x-2.5 cursor-pointer text-xs select-none">
-            <input
-              type="checkbox"
-              checked={filterBalcony}
-              onChange={(event) => onFilterBalconyChange(event.target.checked)}
-              className="rounded accent-[#1d1d1f] w-4 h-4 cursor-pointer"
-            />
-            <span className="text-slate-600 font-medium">Balcony / terrace</span>
-          </label>
-
-          <label className="flex items-center space-x-2.5 cursor-pointer text-xs select-none">
-            <input
-              type="checkbox"
-              checked={filterParking}
-              onChange={(event) => onFilterParkingChange(event.target.checked)}
-              className="rounded accent-[#1d1d1f] w-4 h-4 cursor-pointer"
-            />
-            <span className="text-slate-600 font-medium">Parking</span>
-          </label>
-
-          <label className="flex items-center space-x-2.5 cursor-pointer text-xs select-none">
-            <input
-              type="checkbox"
-              checked={filterKitchen}
-              onChange={(event) => onFilterKitchenChange(event.target.checked)}
-              className="rounded accent-[#1d1d1f] w-4 h-4 cursor-pointer"
-            />
-            <span className="text-slate-600 font-medium">Built-in kitchen</span>
-          </label>
-        </div>
-
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={onReset}
